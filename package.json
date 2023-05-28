@@ -1,0 +1,31 @@
+{
+  "name": "zylax",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc && tsconfig-replace-paths"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.7",
+    "glob": "^10.2.6",
+    "kolorist": "^1.8.0",
+    "lodash": "^4.17.21",
+    "mysql2": "^3.3.3",
+    "randomstring": "^1.2.3",
+    "socket.io": "^4.6.1",
+    "stacktrace-js": "^2.0.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/glob": "^8.1.0",
+    "@types/lodash": "^4.14.195",
+    "@types/node": "^20.2.5",
+    "@types/randomstring": "^1.1.8",
+    "@types/uuid": "^9.0.1",
+    "tsconfig-replace-paths": "^0.0.14",
+    "typescript": "^5.0.4"
+  }
+}

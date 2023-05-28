@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "rootDir": "src",
+        "moduleResolution": "node",
+        "target": "es2021",
+        "lib": ["es2021"],
+        "outDir": "dist",
+        "module": "commonjs",
+        "skipLibCheck": true,
+        "strict": true,
+        "declaration": true,
+        "strictPropertyInitialization": false,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "baseUrl": "./",
+        "paths": {
+            "~/*": ["src/*"],
+            "~types": ["types/index"]
+        }
+    }
+}
