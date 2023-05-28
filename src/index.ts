@@ -12,3 +12,4 @@ export { logger } from './lib/Logger';
 export { default as Database } from './lib/Database';
 export { default as WebSocket } from './lib/WebSocket';
 export { default as Taskrunner } from './lib/Taskrunner';
+export { default as ModelWithProps } from './lib/ModelWithProps';
