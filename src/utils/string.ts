@@ -1,4 +1,4 @@
-import uuidLib from 'uuid';
+import * as uuidLib from 'uuid';
 
 /** 
  * Generates a v4 Uuid without dashes. 
