@@ -5,6 +5,7 @@ export * from './localization/index';
 export * from './records/index';
 export * from './users/index';
 export * from './dashboard/index';
+export * as utils from './utils/index';
 export type * from '../types';
 
 export * as api from './extensions/api';
