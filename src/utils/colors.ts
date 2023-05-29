@@ -7,6 +7,7 @@ const colors = {
     PURPLE: '$purple',
     RED: '$red',
     YELLOW: '$yellow',
+    GRAY: '$gray'
 } as const;
 
 export type Color = typeof colors[keyof typeof colors];
