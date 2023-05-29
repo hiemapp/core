@@ -11,7 +11,7 @@ export default class FlowBlock extends ExtensionModule {
         return;
     }
 
-    reload(ctx: FlowBlockContext): void {
+    handleMount(ctx: FlowBlockContext): void {
         
     }
 
