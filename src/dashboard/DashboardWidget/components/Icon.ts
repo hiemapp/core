@@ -1,9 +1,13 @@
 import { componentFactory } from '../utils/helpers';
 import WidgetNode from '../nodes/WidgetNode';
 import { Icon as IconId } from '~/utils/icons';
+import { Color } from '~/utils/colors';
 
 export interface IconProps {
-    id: IconId
+    id: IconId;
+    size?: number;
+    weight?: 'light' | 'solid';
+    color?: Color | string
 }
 
 const Icon = componentFactory<IconProps>((props) => {
