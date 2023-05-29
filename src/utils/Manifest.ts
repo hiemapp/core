@@ -1,5 +1,4 @@
 import * as _ from 'lodash';
-import { validate } from './validation';
 import fs from 'fs';
 import { JSONParseOrFail } from '../utils/string';
 
