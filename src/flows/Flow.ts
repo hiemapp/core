@@ -1,15 +1,13 @@
 import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
 import _ from 'lodash';
 import FlowController from './FlowController';
-import { FlowBlocklyWorkspace, FlowProps, TaskrunnerFlowTaskData } from 'types';
+import { FlowBlocklyWorkspace, FlowProps, FlowBlockCustomTaskData } from 'types';
 import FlowBlockContext from './FlowBlockContext/FlowBlockContext';
 import FlowTranspiler from './FlowTranspiler';
 import FlowContext from './FlowContext/FlowContext';
 import Taskrunner, { TaskrunnerTaskEvent } from '../lib/Taskrunner';
 import ExtensionController from '../extensions/ExtensionController';
 import FlowBlock from './FlowBlock';
-
-type TaskrunnerFlowTaskEvent = TaskrunnerTaskEvent<TaskrunnerFlowTaskData>;
 
 export default class Flow extends ModelWithProps<FlowProps> {
     _getConfig(): ModelWithPropsConfig<FlowProps, FlowProps> {
@@ -28,21 +26,24 @@ export default class Flow extends ModelWithProps<FlowProps> {
 
     updateWorkspace(wpc: FlowBlocklyWorkspace) {
         this.setProp('blocklyWorkspace', wpc);
+        this.reload();
+    }
 
+    reload() { 
+        console.log('reload!');
         const { blocks } = this.createContext();
 
         // Remove all existing tasks for this flow
         const tasks = Taskrunner.indexTasks();
         tasks.forEach(t => {
-            if(t.keyword === 'FLOW_BLOCK_CUSTOM_TASK' || t.keyword === 'FLOW_BLOCK_RELOAD_TASK') {
-                if(t.data.ctx.flowId === this.getId()) {
-                    Taskrunner.deleteTask(t.uuid);
-                }
+            if(t.keyword === 'FLOW_TASK' && t.data.ctx.flowId === this.getId()) {
+                Taskrunner.deleteTask(t.uuid);
             }
         })
-
+        
+        // Mount all the blocks
         Object.values(blocks).forEach(block => {
-            block.reloadNow();
+            block.mount();
         })
     }
 
@@ -67,8 +68,8 @@ export default class Flow extends ModelWithProps<FlowProps> {
         return { blocks, flow };
     }
 
-    protected handleBlockCustomTask(e: TaskrunnerFlowTaskEvent) {
-        if(e.task.keyword !== 'FLOW_BLOCK_CUSTOM_TASK') return;
+    protected handleBlockCustomTask(e: TaskrunnerTaskEvent<FlowBlockCustomTaskData>) {
+        if(e.task.data.taskType !== 'CUSTOM') return;
         if(e.task.data.ctx.flowId !== this.getId()) return;
 
         try {
@@ -96,9 +97,5 @@ export default class Flow extends ModelWithProps<FlowProps> {
                 block.execute();
             }
         })
-    
-        // scriptWithContexts.contexts.forEach(ctx => {
-        //     if(ctx.hasParent()) return;
-        // })
     }
 }

@@ -54,9 +54,14 @@ export interface FlowScriptBlockParameter {
 export interface FlowScript {
     blocks: FlowScriptBlock[];
 }
-export interface TaskrunnerFlowTaskData<TOriginalData = any> {
+
+export interface FlowBlockCustomTaskData<TOriginalData = any> extends FlowTaskData {
     originalKeyword: string;
-    originalData?: TOriginalData;
+    originalData?: TOriginalData
+}
+
+export interface FlowTaskData {
+    taskType: 'RUN' | 'REMOUNT' | 'CUSTOM',
     ctx: {
         flowId: number;
         block: {
