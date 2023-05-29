@@ -3125,6 +3125,6 @@ const icons = {
   'Z': 'z',
 } as const;
 
-export type Icon = keyof typeof icons;
+export type Icon = typeof icons[keyof typeof icons];
 
 export default icons;
