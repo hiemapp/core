@@ -9,6 +9,6 @@ const colors = {
     YELLOW: 'yellow',
 } as const;
 
-export type Color = keyof typeof colors;
+export type Color = typeof colors[keyof typeof colors];
 
 export default colors;
