@@ -1,4 +1,4 @@
-import { Constructor, FlowScriptBlock, FlowBlockManifest, TaskrunnerFlowTaskData } from 'types';
+import { Constructor, FlowScriptBlock, FlowBlockManifest, FlowBlockCustomTaskData, FlowTaskData } from 'types';
 import { logger } from '../../lib';
 import FlowBlockStatementContext from './FlowBlockStatementContext';
 import FlowBlockParameterContext from './FlowBlockParameterContext';
@@ -102,7 +102,8 @@ export default class FlowBlockContext {
     }
 
     registerTimedTask<TData = any>(date: Date, keyword: string, data?: TData) {
-        Taskrunner.registerTimedTask<TaskrunnerFlowTaskData<TData>>(date, 'FLOW_BLOCK_CUSTOM_TASK', {
+        Taskrunner.registerTimedTask<FlowBlockCustomTaskData<TData>>(date, 'FLOW_TASK', {
+            taskType: 'CUSTOM',
             originalKeyword: keyword,
             originalData: data,
             ctx: this.serialize()
@@ -110,28 +111,25 @@ export default class FlowBlockContext {
     }
 
     registerDelayedTask<TData = any>(msDelay: number, keyword: string, data?: TData) {
-        const date = new Date(Date.now() + msDelay);
-        this.registerTimedTask<TData>(date, keyword, data);
-    }
-
-    reloadAt(date: Date) {
-        // Find all existing tasks for this block id
-        const existingTasks = Taskrunner.findAll('FLOW_BLOCK_RELOAD_TASK').filter(
-            (t: TaskrunnerTask<TaskrunnerFlowTaskData>) => t.data.ctx.block.id);
-
-        // Remove the existing tasks
-        existingTasks.forEach(task => {
-            Taskrunner.deleteTask(task.uuid);
-        })
-
-        // Register the new task
-        this.registerTimedTask(date, 'FLOW_BLOCK_RELOAD_TASK', {
+        Taskrunner.registerDelayedTask<FlowBlockCustomTaskData<TData>>(msDelay, 'FLOW_TASK', {
+            taskType: 'CUSTOM',
+            originalKeyword: keyword,
+            originalData: data,
             ctx: this.serialize()
         })
     }
 
-    reloadNow() {
-        this.typeInstance.reload(this);
+    registerRepeatingTask<TData = any>(msInterval: number, keyword: string, data?: TData) {
+        Taskrunner.registerRepeatingTask<FlowBlockCustomTaskData<TData>>(msInterval, 'FLOW_TASK', {
+            taskType: 'CUSTOM',
+            originalKeyword: keyword,
+            originalData: data,
+            ctx: this.serialize()
+        })
+    }
+
+    mount() {
+        this.typeInstance.handleMount(this);
     }
 
     protected findDef(): FlowScriptBlock {
@@ -148,7 +146,7 @@ export default class FlowBlockContext {
         return ExtensionController.findModule(FlowBlock, this.def.type);
     }
 
-    protected serialize(): TaskrunnerFlowTaskData['ctx'] {
+    protected serialize(): FlowTaskData['ctx'] {
         return {
             block: {
                 type: this.def.type,
