@@ -1,3 +1,5 @@
+import { SerializedNode } from '~types';
+
 export default class TextNode {
     text: string;
 
@@ -5,9 +7,9 @@ export default class TextNode {
         this.text = text;
     }
 
-    toJSON() {
+    serialize(): SerializedNode {
         return { 
-            text: this.text 
+            text: (this.text+'')
         }
     }
 }
