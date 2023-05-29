@@ -17,6 +17,10 @@ export default class DashboardWidget extends ExtensionModule {
         }
     }
     
+    onMount(): void {
+
+    }
+    
     render(): DashboardWidgetNode {
         return null;
     }
