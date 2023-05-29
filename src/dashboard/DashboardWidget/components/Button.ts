@@ -1,16 +1,27 @@
 import { componentFactory } from '../utils/helpers';
 import WidgetNode from '../nodes/WidgetNode';
+import { Color } from '~/utils/colors';
 
 export interface ButtonProps {
-    onClick?: () => unknown
+    onClick?: () => unknown;
+    variant?: 'primary' | 'secondary' | 'unstyled' | 'link';
+    active?: boolean;
+    loading?: boolean;
+    disabled?: boolean;
+    size?: 'xs' | 'sm' | 'md' | 'lg';
+    square?: boolean;
+    primary?: Color;
+    secondary?: Color;
+    round?: boolean;
+    to?: string;
+    stretch?: boolean
 }
 
 const Button = componentFactory<ButtonProps>(
-    ({ onClick, children }) => {
-        console.log({ onClick });
+    ({ onClick, children, ...props }) => {
         return new WidgetNode(
-            'button', 
-            undefined,
+            'Button', 
+            props,
             children,
             { onClick }
         );
