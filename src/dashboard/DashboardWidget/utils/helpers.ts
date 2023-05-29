@@ -1,11 +1,12 @@
 import _ from 'lodash';
 import TextNode from '../nodes/TextNode';
-import type { Node, ValidNode } from './types';
+import type { ChildNode, Node, ValidNode } from './types';
 import type { SerializedNode, WrapperProps, RenderProps } from '~types';
-import DashboardWidget from '../DashboardWidget';
 import WidgetNode from '../nodes/WidgetNode';
+import DashboardWidget from '../DashboardWidget';
 
-export function serializeWidgetNode(node: Node): null | SerializedNode {
+export function renderWidgetAndSerialize(widget: DashboardWidget): null | SerializedNode {
+    const node = formatNode(widget.render());
     if(!node) return null;
 
     let idCounter = 0;
@@ -17,14 +18,14 @@ export function serializeWidgetNode(node: Node): null | SerializedNode {
 /**
  * Convert text strings to a TextNode.
  */
-export function formatNode(node: Node | string): Node {
+export function formatNode(node: ChildNode): Node {
     if(typeof node === 'string') return new TextNode(node);
     return node;
 }
 
 export function componentFactory<TProps>(render: (props: RenderProps<TProps>) => Node | string) {
-    function wrapper(props?: WrapperProps<TProps>, ...children: Node[]): Node;
-    function wrapper(...children: Node[]): Node;
+    function wrapper(props?: WrapperProps<TProps>, ...children: ChildNode[]): Node;
+    function wrapper(...children: ChildNode[]): Node;
     function wrapper(...args: any[]): Node {
         const hasProps = !Array.isArray(args[0]);
         const children: Node[] = hasProps ? args.slice(1) : args;
