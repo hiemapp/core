@@ -1,21 +1,21 @@
 const colorSets = {
-    BLUE: ['$blue-0', '$blue-1', '$blue-2', '$blue-3', '$blue-4', '$blue-5', '$blue-6', '$blue-7', '$blue-8', '$blue-9'],
-    CYAN: ['$cyan-0', '$cyan-1', '$cyan-2', '$cyan-3', '$cyan-4', '$cyan-5', '$cyan-6', '$cyan-7', '$cyan-8', '$cyan-9'],
-    GREEN: ['$green-0', '$green-1', '$green-2', '$green-3', '$green-4', '$green-5', '$green-6', '$green-7', '$green-8', '$green-9'],
-    ORANGE: ['$orange-0', '$orange-1', '$orange-2', '$orange-3', '$orange-4', '$orange-5', '$orange-6', '$orange-7', '$orange-8', '$orange-9'],
-    PINK: ['$pink-0', '$pink-1', '$pink-2', '$pink-3', '$pink-4', '$pink-5', '$pink-6', '$pink-7', '$pink-8', '$pink-9'],
-    PURPLE: ['$purple-0', '$purple-1', '$purple-2', '$purple-3', '$purple-4', '$purple-5', '$purple-6', '$purple-7', '$purple-8', '$purple-9'],
-    RED: ['$red-0', '$red-1', '$red-2', '$red-3', '$red-4', '$red-5', '$red-6', '$red-7', '$red-8', '$red-9'],
-    YELLOW: ['$yellow-0', '$yellow-1', '$yellow-2', '$yellow-3', '$yellow-4', '$yellow-5', '$yellow-6', '$yellow-7', '$yellow-8', '$yellow-9'],
-    GRAY: ['$gray-0', '$gray-1', '$gray-2', '$gray-3', '$gray-4', '$gray-5', '$gray-6', '$gray-7', '$gray-8', '$gray-9', '$gray-10', '$gray-11', '$gray-12', '$gray-13']
+    BLUE: ['var(--blue-0)', 'var(--blue-1)', 'var(--blue-2)', 'var(--blue-3)', 'var(--blue-4)', 'var(--blue-5)', 'var(--blue-6)', 'var(--blue-7)', 'var(--blue-8)', 'var(--blue-9)'],
+    CYAN: ['var(--cyan-0)', 'var(--cyan-1)', 'var(--cyan-2)', 'var(--cyan-3)', 'var(--cyan-4)', 'var(--cyan-5)', 'var(--cyan-6)', 'var(--cyan-7)', 'var(--cyan-8)', 'var(--cyan-9)'],
+    GREEN: ['var(--green-0)', 'var(--green-1)', 'var(--green-2)', 'var(--green-3)', 'var(--green-4)', 'var(--green-5)', 'var(--green-6)', 'var(--green-7)', 'var(--green-8)', 'var(--green-9)'],
+    ORANGE: ['var(--orange-0)', 'var(--orange-1)', 'var(--orange-2)', 'var(--orange-3)', 'var(--orange-4)', 'var(--orange-5)', 'var(--orange-6)', 'var(--orange-7)', 'var(--orange-8)', 'var(--orange-9)'],
+    PINK: ['var(--pink-0)', 'var(--pink-1)', 'var(--pink-2)', 'var(--pink-3)', 'var(--pink-4)', 'var(--pink-5)', 'var(--pink-6)', 'var(--pink-7)', 'var(--pink-8)', 'var(--pink-9)'],
+    PURPLE: ['var(--purple-0)', 'var(--purple-1)', 'var(--purple-2)', 'var(--purple-3)', 'var(--purple-4)', 'var(--purple-5)', 'var(--purple-6)', 'var(--purple-7)', 'var(--purple-8)', 'var(--purple-9)'],
+    RED: ['var(--red-0)', 'var(--red-1)', 'var(--red-2)', 'var(--red-3)', 'var(--red-4)', 'var(--red-5)', 'var(--red-6)', 'var(--red-7)', 'var(--red-8)', 'var(--red-9)'],
+    YELLOW: ['var(--yellow-0)', 'var(--yellow-1)', 'var(--yellow-2)', 'var(--yellow-3)', 'var(--yellow-4)', 'var(--yellow-5)', 'var(--yellow-6)', 'var(--yellow-7)', 'var(--yellow-8)', 'var(--yellow-9)'],
+    GRAY: ['var(--gray-0)', 'var(--gray-1)', 'var(--gray-2)', 'var(--gray-3)', 'var(--gray-4)', 'var(--gray-5)', 'var(--gray-6)', 'var(--gray-7)', 'var(--gray-8)', 'var(--gray-9)', 'var(--gray-10)', 'var(--gray-11)', 'var(--gray-12)', 'var(--gray-13)']
 } as const;
 
 const colorValues = {
-    TEXT_LIGHT: '$text-light',
-    TEXT_DARK: '$text-dark',
-    TEXT_MUTED: '$text-muted',
-    TEXT_PRIMARY: '$text-primary',
-    TEXT_PRIMARY_INVERSE: '$text-primary-inverse'
+    TEXT_LIGHT: 'var(--text-light)',
+    TEXT_DARK: 'var(--text-dark)',
+    TEXT_MUTED: 'var(--text-muted)',
+    TEXT_PRIMARY: 'var(--text-primary)',
+    TEXT_PRIMARY_INVERSE: 'var(--text-primary)-inverse'
 } as const;
 
 export type Color = typeof colorSets[keyof typeof colorSets][number] | typeof colorValues[keyof typeof colorValues];
