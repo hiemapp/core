@@ -1,17 +1,18 @@
 import { componentFactory } from '../utils/helpers';
 import WidgetNode from '../nodes/WidgetNode';
-import { Color } from '~/utils/colors';
+import type { ColorPalette } from '~/utils/style/colorPalettes';
+import { DashboardWidgetListener } from '../DashboardWidget';
 
 export interface ButtonProps {
-    onClick?: () => unknown;
+    onClick?: DashboardWidgetListener;
     variant?: 'primary' | 'secondary' | 'unstyled' | 'link';
     active?: boolean;
     loading?: boolean;
     disabled?: boolean;
     size?: 'xs' | 'sm' | 'md' | 'lg';
     square?: boolean;
-    primary?: Color;
-    secondary?: Color;
+    primary?: ColorPalette;
+    secondary?: ColorPalette;
     round?: boolean;
     to?: string;
     stretch?: boolean
