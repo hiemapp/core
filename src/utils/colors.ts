@@ -1,4 +1,4 @@
-const colorLists = {
+const colorSets = {
     BLUE: ['$blue-0', '$blue-1', '$blue-2', '$blue-3', '$blue-4', '$blue-5', '$blue-6', '$blue-7', '$blue-8', '$blue-9'],
     CYAN: ['$cyan-0', '$cyan-1', '$cyan-2', '$cyan-3', '$cyan-4', '$cyan-5', '$cyan-6', '$cyan-7', '$cyan-8', '$cyan-9'],
     GREEN: ['$green-0', '$green-1', '$green-2', '$green-3', '$green-4', '$green-5', '$green-6', '$green-7', '$green-8', '$green-9'],
@@ -18,7 +18,7 @@ const colorValues = {
     TEXT_PRIMARY_INVERSE: '$text-primary-inverse'
 } as const;
 
-export type Color = typeof colorLists[keyof typeof colorLists][number] | typeof colorValues[keyof typeof colorValues];
+export type Color = typeof colorSets[keyof typeof colorSets][number] | typeof colorValues[keyof typeof colorValues];
 
-const colors = { ...colorLists, ...colorValues };
+const colors = { ...colorSets, ...colorValues };
 export default colors;
