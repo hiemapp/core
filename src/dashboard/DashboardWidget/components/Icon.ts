@@ -5,7 +5,7 @@ import { Color } from '~/utils/style/colors';
 
 export interface IconProps {
     id: IconId;
-    size?: number;
+    size?: number | string;
     weight?: 'light' | 'solid';
     color?: Color
 }
