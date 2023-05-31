@@ -1,9 +1,10 @@
-import { Color } from '~/utils/colors';
+import { DashboardWidgetListener } from '~/dashboard/DashboardWidget/DashboardWidget';
+import { ColorPalette } from '~/utils/colorPalettes';
 import { Icon } from '~/utils/icons';
 
 export interface DashboardWidgetManifest {
     title: string;
-    color: Color;
+    accent: ColorPalette;
     icon: Icon;
 }
 
@@ -13,14 +14,15 @@ export interface SerializedNode {
     tag?: string;
     attributes?: Record<string, any>;
     children?: SerializedNode[],
-    events?: string[]
+    listeners?: Record<string, DashboardWidgetListener | undefined>
 }
 
 export type WrapperProps<TProps> = TProps & { 
-    className?: string
+    className?: string;
+    style?: Record<string, string | number>;
 };
 
 export type RenderProps<TProps> = TProps & {
-    className?: string
-    children: ValidNode[],
+    className?: string;
+    children: ValidNode[];
 }

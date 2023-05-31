@@ -2,11 +2,15 @@ import ExtensionModule from '~/extensions/ExtensionModule';
 import icons from '~/utils/icons';
 import { DashboardWidgetManifest } from '~types';
 import { DashboardWidgetNode } from '~/extensions/api/dashboard';
-import colors from '~/utils/colors';
+import colorPalettes from '~/utils/style/colorPalettes';
 import { WebSocket } from '~/lib';
+
+export type DashboardWidgetListenerCallback = () => unknown;
+export type DashboardWidgetListener = { id: string };
 
 export default class DashboardWidget<TState extends Record<string, any> = {}> extends ExtensionModule {
     #state: TState = {} as TState;
+    #callbacks: Record<string, DashboardWidgetListenerCallback> = {};
     sessionId: string;
 
     constructor(sessionId: string) {
@@ -18,7 +22,7 @@ export default class DashboardWidget<TState extends Record<string, any> = {}> ex
     getManifest(): DashboardWidgetManifest {
         return {
             title: 'My widget',
-            color: colors.BLUE,
+            accent: colorPalettes.BLUE,
             icon: icons.CIRCLE_QUESTION
         }
     }
@@ -29,6 +33,20 @@ export default class DashboardWidget<TState extends Record<string, any> = {}> ex
      
     render(): DashboardWidgetNode {
         return null;
+    }
+
+    createListener(id: string, callback: DashboardWidgetListenerCallback): DashboardWidgetListener {
+        this.#callbacks[id] = callback;
+        return { id };
+    }
+
+    getListener(id: string) {
+        if(!this.#callbacks[id]) return null;
+
+        return { 
+            id,
+            callback: this.#callbacks[id]
+        }
     }
 
     getState<TKey extends keyof TState>(key: TKey): TState[TKey] {
