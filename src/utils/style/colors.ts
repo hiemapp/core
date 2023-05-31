@@ -18,7 +18,8 @@ const colorValues = {
     TEXT_PRIMARY_INVERSE: 'var(--text-primary)-inverse'
 } as const;
 
+const colors = { ...colorSets, ...colorValues };
+
 export type Color = typeof colorSets[keyof typeof colorSets][number] | typeof colorValues[keyof typeof colorValues];
 
-const colors = { ...colorSets, ...colorValues };
 export default colors;
