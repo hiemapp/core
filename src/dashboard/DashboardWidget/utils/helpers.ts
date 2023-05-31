@@ -19,7 +19,11 @@ export function renderWidgetAndSerialize(widget: DashboardWidget): null | Serial
  * Convert text strings to a TextNode.
  */
 export function formatNode(node: ChildNode): Node {
-    if(typeof node === 'string') return new TextNode(node);
+    if(typeof node === 'string' || typeof node === 'number') {
+        return new TextNode(node);
+
+    }
+    
     return node;
 }
 
