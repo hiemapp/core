@@ -1,9 +1,10 @@
 import { pickBy } from 'lodash';
 import type { ValidNode } from '../utils/types';
 import type { SerializedNode } from '~types';
+import type { DashboardWidgetListener } from '../DashboardWidget';
 
 export type WidgetNodeAttributes = Record<string, any>
-export type WidgetNodeListeners = Record<string, undefined | ((...args: any[]) => any)>;
+export type WidgetNodeListeners = Record<string, DashboardWidgetListener | undefined>;
 
 export default class WidgetNode {
     protected readonly tag: string;
@@ -20,16 +21,18 @@ export default class WidgetNode {
         this.tag = tag;
         this.children = children;
         this.attributes = attributes;
-        this.listeners = listeners && pickBy(listeners, cb => typeof cb === 'function');
+        this.listeners = listeners;
     }
 
     serialize(nextId: () => number): SerializedNode {
+        const nodeId = nextId();
+
         return {
-            id: nextId(),
+            id: nodeId,
             tag: this.tag,
             attributes: this.attributes,
             children: this.children && this.children.map(c => c.serialize(nextId)),
-            events: this.listeners && Object.keys(this.listeners)
+            listeners: pickBy(this.listeners, l => typeof l !== 'undefined')
         }
     }
 }
