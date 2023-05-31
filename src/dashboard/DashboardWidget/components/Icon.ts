@@ -7,8 +7,7 @@ export interface IconProps {
     id: IconId;
     size?: number;
     weight?: 'light' | 'solid';
-    color?: Color | string;
-    lightness?: number
+    color?: Color
 }
 
 const Icon = componentFactory<IconProps>((props) => {
