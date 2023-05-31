@@ -1,7 +1,7 @@
 import { componentFactory } from '../utils/helpers';
 import WidgetNode from '../nodes/WidgetNode';
 import { Icon as IconId } from '~/utils/icons';
-import { Color } from '~/utils/colors';
+import { Color } from '~/utils/style/colors';
 
 export interface IconProps {
     id: IconId;
