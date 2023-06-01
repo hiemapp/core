@@ -24,7 +24,7 @@ export default class WidgetNode {
 
         // Convert classname to string if it's an array
         if(this.attributes?.className && Array.isArray(this.attributes?.className)) {
-            this.attributes.className = flattenDeep(this.attributes.className).join(' ');
+            this.attributes.className = flattenDeep(this.attributes.className).filter(c => typeof c === 'string').join(' ');
         }
 
         this.listeners = listeners;
