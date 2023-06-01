@@ -1,10 +1,10 @@
 import { DashboardWidgetListener } from '~/dashboard/DashboardWidget/DashboardWidget';
-import { ColorPalette } from '~/utils/colorPalettes';
+import type { Color } from '~/utils/style/colors';
 import { Icon } from '~/utils/icons';
 
 export interface DashboardWidgetManifest {
     title: string;
-    accent: ColorPalette;
+    color: Color;
     icon: Icon;
 }
 
