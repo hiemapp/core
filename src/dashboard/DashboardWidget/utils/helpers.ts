@@ -1,9 +1,9 @@
-import _ from 'lodash';
 import TextNode from '../nodes/TextNode';
 import type { ChildNode, Node, ValidNode } from './types';
 import type { SerializedNode, WrapperProps, RenderProps } from '~types';
 import WidgetNode from '../nodes/WidgetNode';
 import DashboardWidget from '../DashboardWidget';
+import { isPlainObject } from 'lodash';
 
 export function renderWidgetAndSerialize(widget: DashboardWidget): null | SerializedNode {
     const node = formatNode(widget.render());
@@ -31,9 +31,9 @@ export function componentFactory<TProps>(render: (props: RenderProps<TProps>) =>
     function wrapper(props?: WrapperProps<TProps>, ...children: ChildNode[]): Node;
     function wrapper(...children: ChildNode[]): Node;
     function wrapper(...args: any[]): Node {
-        const hasProps = !Array.isArray(args[0]);
-        const children: Node[] = hasProps ? args.slice(1) : args;
-        const props: TProps = hasProps ? args[0] : {};
+        const firstArgIsProps = isPlainObject(args[0]);
+        const children: Node[] = firstArgIsProps ? args.slice(1) : args;
+        const props: TProps = firstArgIsProps ? args[0] : {};
 
         const parsedChildren = children.map(formatNode);
         const validChildren = parsedChildren.filter(c => c instanceof TextNode || c instanceof WidgetNode) as ValidNode[];
