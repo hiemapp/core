@@ -2,8 +2,8 @@ import ExtensionModule from '~/extensions/ExtensionModule';
 import icons from '~/utils/icons';
 import { DashboardWidgetManifest } from '~types';
 import { DashboardWidgetNode } from '~/extensions/api/dashboard';
-import colorPalettes from '~/utils/style/colorPalettes';
 import { WebSocket } from '~/lib';
+import { colors } from '~/utils';
 
 export type DashboardWidgetListenerCallback = () => unknown;
 export type DashboardWidgetListener = { id: string };
@@ -22,7 +22,7 @@ export default class DashboardWidget<TState extends Record<string, any> = {}> ex
     getManifest(): DashboardWidgetManifest {
         return {
             title: 'My widget',
-            accent: colorPalettes.BLUE,
+            color: colors.BLUE[5],
             icon: icons.CIRCLE_QUESTION
         }
     }
