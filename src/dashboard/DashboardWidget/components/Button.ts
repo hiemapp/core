@@ -1,6 +1,6 @@
 import { componentFactory } from '../utils/helpers';
 import WidgetNode from '../nodes/WidgetNode';
-import type { ColorPalette } from '~/utils/style/colorPalettes';
+import type { ColorPalette } from '~/utils/style/colors';
 import { DashboardWidgetListener } from '../DashboardWidget';
 
 export interface ButtonProps {
