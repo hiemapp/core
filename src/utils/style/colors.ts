@@ -1,4 +1,4 @@
-const colorSets = {
+const colorPalettes = {
     BLUE: ['var(--blue-0)', 'var(--blue-1)', 'var(--blue-2)', 'var(--blue-3)', 'var(--blue-4)', 'var(--blue-5)', 'var(--blue-6)', 'var(--blue-7)', 'var(--blue-8)', 'var(--blue-9)'],
     CYAN: ['var(--cyan-0)', 'var(--cyan-1)', 'var(--cyan-2)', 'var(--cyan-3)', 'var(--cyan-4)', 'var(--cyan-5)', 'var(--cyan-6)', 'var(--cyan-7)', 'var(--cyan-8)', 'var(--cyan-9)'],
     GREEN: ['var(--green-0)', 'var(--green-1)', 'var(--green-2)', 'var(--green-3)', 'var(--green-4)', 'var(--green-5)', 'var(--green-6)', 'var(--green-7)', 'var(--green-8)', 'var(--green-9)'],
@@ -15,11 +15,12 @@ const colorValues = {
     TEXT_DARK: 'var(--text-dark)',
     TEXT_MUTED: 'var(--text-muted)',
     TEXT_PRIMARY: 'var(--text-primary)',
-    TEXT_PRIMARY_INVERSE: 'var(--text-primary)-inverse'
+    TEXT_PRIMARY_INVERSE: 'var(--text-primary-inverse)'
 } as const;
 
-const colors = { ...colorSets, ...colorValues };
+const colors = { ...colorPalettes, ...colorValues };
 
-export type Color = typeof colorSets[keyof typeof colorSets][number] | typeof colorValues[keyof typeof colorValues];
+export type ColorPalette = typeof colorPalettes[keyof typeof colorPalettes];
+export type Color = ColorPalette[number] | typeof colorValues[keyof typeof colorValues];
 
 export default colors;
