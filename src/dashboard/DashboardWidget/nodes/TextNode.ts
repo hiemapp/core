@@ -3,8 +3,8 @@ import { SerializedNode } from '~types';
 export default class TextNode {
     text: string;
 
-    constructor(text: string) {
-        this.text = text;
+    constructor(text: string | number) {
+        this.text = text+'';
     }
 
     serialize(): SerializedNode {
