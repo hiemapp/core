@@ -1,4 +1,4 @@
-import { pickBy } from 'lodash';
+import { flattenDeep, pickBy } from 'lodash';
 import type { ValidNode } from '../utils/types';
 import type { SerializedNode } from '~types';
 import type { DashboardWidgetListener } from '../DashboardWidget';
@@ -21,6 +21,12 @@ export default class WidgetNode {
         this.tag = tag;
         this.children = children;
         this.attributes = attributes;
+
+        // Convert classname to string if it's an array
+        if(this.attributes?.className && Array.isArray(this.attributes?.className)) {
+            this.attributes.className = flattenDeep(this.attributes.className).join(' ');
+        }
+
         this.listeners = listeners;
     }
 
