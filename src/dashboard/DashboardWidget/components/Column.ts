@@ -21,7 +21,7 @@ function getColClasses(span: Required<ColumnProps>['span']) {
         let className = `col-${breakpoint}-${breakpointSpan}`;
 
         if(breakpoint === 'default') {
-            className = `col-${breakpoint}`;
+            className = `col-${breakpointSpan}`;
         }
 
         classList.push(className);
