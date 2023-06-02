@@ -1,20 +1,14 @@
 import { uuid } from '~/utils';
-import { ExtensionController, SerializedNode } from '..';
-import DashboardWidget from './DashboardWidget/DashboardWidget';
+import { ExtensionController } from '..';
+import DashboardWidget from './DashboardWidget';
 
 export type WidgetSessionData = {
     userId: number;
     slug: string;
 }
 
-export interface RememberedWidgetContent {
-    content: SerializedNode;
-    contentId: string;
-}
-
 export default class DashboardWidgetManager {
     protected static sessions: Record<string, DashboardWidget> = {};
-    protected static rememberedContent: Record<string, RememberedWidgetContent[]> = {};
 
     static getWidget(sessionId: string) {
         if(this.sessions[sessionId]) {
