@@ -5,3 +5,4 @@ export * as registry from './registry';
 export * as records from './records';
 export * as localization from './localization';
 export * as dashboard from './dashboard';
+export * as jsx from './jsx';

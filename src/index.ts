@@ -6,6 +6,7 @@ export * from './records/index';
 export * from './users/index';
 export * from './dashboard/index';
 export * as utils from './utils/index';
+export * as jsx from './lib/jsx';
 export type * from '../types';
 
 export * as api from './extensions/api';
