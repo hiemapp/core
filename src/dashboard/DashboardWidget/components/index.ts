@@ -6,3 +6,4 @@ export { default as Tile } from './Tile';
 export { default as Column } from './Column';
 export { default as span } from './span';
 export { default as div } from './div';
+export { default as img } from './img';
