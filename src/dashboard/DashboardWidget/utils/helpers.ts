@@ -28,15 +28,13 @@ export function formatNode(node: ChildNode): Node {
 }
 
 export function componentFactory<TProps>(render: (props: RenderProps<TProps>) => Node | string) {
-    function wrapper(props?: WrapperProps<TProps>, ...children: ChildNode[]): Node;
-    function wrapper(...children: ChildNode[]): Node;
-    function wrapper(...args: any[]): Node {
-        const firstArgIsProps = isPlainObject(args[0]);
-        const children: Node[] = firstArgIsProps ? args.slice(1) : args;
-        const props: TProps = firstArgIsProps ? args[0] : {};
-
-        const parsedChildren = children.map(formatNode);
-        const validChildren = parsedChildren.filter(c => c instanceof TextNode || c instanceof WidgetNode) as ValidNode[];
+    function wrapper(props: WrapperProps<TProps>): Node {
+        let validChildren: Node[] = [];
+        
+        if(props.children) {
+            const parsedChildren = props.children.map(formatNode);
+            validChildren = parsedChildren.filter(c => c instanceof TextNode || c instanceof WidgetNode) as ValidNode[];
+        }
 
         return formatNode(
             render({ 
