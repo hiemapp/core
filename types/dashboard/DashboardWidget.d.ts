@@ -17,12 +17,30 @@ export interface SerializedNode {
     listeners?: Record<string, DashboardWidgetListener | undefined>
 }
 
+type StylePropertyValue = 'auto' | 'inherit' | 'unset' | string;
+type StyleProperties = {
+    margin: StylePropertyValue;
+    marginTop: StylePropertyValue;
+    marginRight: StylePropertyValue;
+    marginBottom: StylePropertyValue;
+    marginLeft: StylePropertyValue;
+    padding: StylePropertyValue;
+    paddingTop: StylePropertyValue;
+    paddingRight: StylePropertyValue;
+    paddingBottom: StylePropertyValue;
+    paddingLeft: StylePropertyValue;
+    color: StylePropertyValue;
+    backgroundColor: StylePropertyValue;
+    fontSize: string;
+    [key: string]: string;
+}
 export type WrapperProps<TProps> = TProps & { 
     className?: string;
-    style?: Record<string, string | number>;
+    style?: Partial<StyleProperties>;
+    children?: ValidNode[];
 };
 
 export type RenderProps<TProps> = TProps & {
+    children?: ValidNode[];
     className?: string;
-    children: ValidNode[];
 }
