@@ -26,7 +26,6 @@ export default class DashboardWidgetManager {
 
         // Create a new widget instance
         const widget = new widgetType(sessionId);
-        console.log({ widget });
         this.sessions[sessionId] = widget;
         widget.onMount();
 
