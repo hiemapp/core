@@ -1,9 +1,9 @@
-import { componentFactory } from '../utils/helpers';
-import WidgetNode from '../nodes/WidgetNode';
+import { Component } from '~types';
+import * as jsx from '../jsx';
 import type { ColorPalette } from '~/utils/style/colors';
-import { DashboardWidgetListener } from '../DashboardWidget';
+import { DashboardWidgetListener } from '../../dashboard/DashboardWidget';
 
-export interface ButtonProps {
+export interface ButtonProps extends JSX.Props {
     onClick?: DashboardWidgetListener;
     variant?: 'primary' | 'secondary' | 'unstyled' | 'link';
     active?: boolean;
@@ -18,15 +18,8 @@ export interface ButtonProps {
     stretch?: boolean
 }
 
-const Button = componentFactory<ButtonProps>(
-    ({ onClick, children, ...props }) => {
-        return new WidgetNode(
-            'Button', 
-            props,
-            children,
-            { onClick }
-        );
-    }
+const Button: Component<ButtonProps> = (props) => (
+    <clientelement tag="Button" props={props} />
 )
 
 export default Button;

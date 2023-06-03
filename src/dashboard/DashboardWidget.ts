@@ -1,7 +1,6 @@
 import ExtensionModule from '~/extensions/ExtensionModule';
 import icons from '~/utils/icons';
-import { DashboardWidgetManifest } from '~types';
-import { DashboardWidgetNode } from '~/extensions/api/dashboard';
+import { DashboardWidgetManifest, DashboardWidgetContent } from '~types';
 import { WebSocket } from '~/lib';
 import { colors } from '~/utils';
 
@@ -31,7 +30,7 @@ export default class DashboardWidget<TState extends Record<string, any> = {}> ex
 
     }
      
-    render(): DashboardWidgetNode {
+    render(): DashboardWidgetContent {
         return null;
     }
 

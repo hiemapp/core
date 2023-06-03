@@ -1,7 +1,7 @@
-import { componentFactory } from '../utils/helpers';
-import WidgetNode from '../nodes/WidgetNode';
 import { Icon as IconId } from '~/utils/icons';
 import { Color } from '~/utils/style/colors';
+import { Component } from '~types';
+import * as jsx from '../jsx';
 
 export interface IconProps {
     id: IconId;
@@ -10,8 +10,8 @@ export interface IconProps {
     color?: Color
 }
 
-const Icon = componentFactory<IconProps>((props) => {
-    return new WidgetNode('Icon', props);
-})
+const Icon: Component<IconProps> = (props) => {
+    return <clientelement tag="Icon" props={props} />
+}
 
 export default Icon;

@@ -26,6 +26,7 @@ export default class DashboardWidgetManager {
 
         // Create a new widget instance
         const widget = new widgetType(sessionId);
+        console.log({ widget });
         this.sessions[sessionId] = widget;
         widget.onMount();
 
@@ -34,7 +35,12 @@ export default class DashboardWidgetManager {
 
     static getOrCreateWidget(slug: string, sessionId: string): DashboardWidget | null {
         let widget = this.getWidget(sessionId);
-        return widget ? widget : this.createWidget(slug, sessionId);
+        
+        if(widget) {
+            return widget;
+        }
+
+        return this.createWidget(slug, sessionId);
     }
 
     static handleWidgetEvent(sessionId: string, event: string, contentHash: string, slug: string) {
