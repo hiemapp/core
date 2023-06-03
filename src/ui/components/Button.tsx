@@ -1,10 +1,10 @@
 import { Component } from '~types';
 import * as jsx from '../jsx';
 import type { ColorPalette } from '~/utils/style/colors';
-import { DashboardWidgetListener } from '../../dashboard/DashboardWidget';
+import { HTMLElementListener } from '~types';
 
 export interface ButtonProps extends JSX.Props {
-    onClick?: DashboardWidgetListener;
+    onClick?: HTMLElementListener;
     variant?: 'primary' | 'secondary' | 'unstyled' | 'link';
     active?: boolean;
     loading?: boolean;

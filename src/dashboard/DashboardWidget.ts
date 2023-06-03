@@ -1,15 +1,12 @@
 import ExtensionModule from '~/extensions/ExtensionModule';
 import icons from '~/utils/icons';
-import { DashboardWidgetManifest, DashboardWidgetContent } from '~types';
+import { DashboardWidgetManifest, DashboardWidgetContent, HTMLElementListener } from '~types';
 import { WebSocket } from '~/lib';
 import { colors } from '~/utils';
 
-export type DashboardWidgetListenerCallback = () => unknown;
-export type DashboardWidgetListener = { id: string };
-
 export default class DashboardWidget<TState extends Record<string, any> = {}> extends ExtensionModule {
     #state: TState = {} as TState;
-    #callbacks: Record<string, DashboardWidgetListenerCallback> = {};
+    #callbacks: Record<string, () => unknown> = {};
     sessionId: string;
 
     constructor(sessionId: string) {
@@ -34,7 +31,7 @@ export default class DashboardWidget<TState extends Record<string, any> = {}> ex
         return null;
     }
 
-    createListener(id: string, callback: DashboardWidgetListenerCallback): DashboardWidgetListener {
+    createListener(id: string, callback: () => unknown): HTMLElementListener {
         this.#callbacks[id] = callback;
         return { id };
     }
