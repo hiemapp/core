@@ -61,7 +61,7 @@ export default class DashboardWidget<TState extends Record<string, any> = {}> ex
     }
 
     #emitUpdateEvent() {
-        WebSocket.emit('dashboard:widgetupdate', {
+        WebSocket.emit('widget:update', {
             widgetSessionId: this.sessionId
         })
     }
