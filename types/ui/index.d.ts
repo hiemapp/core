@@ -22,5 +22,6 @@ export type HTMLElementProps = HTMLElement['attributes'] & {
 export interface HTMLElementListener {
     id: string;
 }
+
 export type Component<TProps extends Record<string, any> = {}> =
     (props: TProps) => JSX.Element
