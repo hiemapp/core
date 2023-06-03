@@ -14,6 +14,7 @@ const colorValues = {
     TEXT_LIGHT: 'var(--text-light)',
     TEXT_DARK: 'var(--text-dark)',
     TEXT_MUTED: 'var(--text-muted)',
+    TEXT_MUTED_ALT: 'var(--gray-8)',
     TEXT_PRIMARY: 'var(--text-primary)',
     TEXT_PRIMARY_INVERSE: 'var(--text-primary-inverse)'
 } as const;
