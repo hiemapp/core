@@ -103,23 +103,23 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
         return new Promise(async (resolve, reject) => {
             try {
                 if (!this._driver || !this._driverManifest) {
-                    throw new Error('No driver initialized.');
+                    return reject('No driver initialized.');
                 }
 
                 if (!this._connection) {
-                    throw new Error('No connection initialized.');
+                    return reject('No connection initialized.');
                 }
 
                 if(!this.canHandleInput()) {
-                    throw new Error('Cannot handle input.');
+                    return reject('Cannot handle input.');
                 }
 
                 if (!this._driverManifest.get('inputs')?.some?.((i: any) => i.name === name)) {
-                    throw new Error(`${this._driver} does not have an input named '${name}'.`);
+                    return reject(`${this._driver} does not have an input named '${name}'.`);
                 }
 
                 if (!this._connection?.isOpen) {
-                    throw new Error('Cannot handle input because the connection is closed.');
+                    return reject('Cannot handle input because the connection is closed.');
                 }
 
                 this.logger.debug(`Changing value of input '${name}'.`, { meta: { value } });
@@ -261,7 +261,9 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
     emitClientUpdate() {
         (async () => {
             WebSocket.emit('devices:change', {
-                device: await this.addDynamicProps(this.getProps()),
+                device: {
+                    id: this.getId()
+                }
             });
         })();
     }
