@@ -7,7 +7,8 @@ const relativeDirectories = {
     CONFIG: './config',
     EXTENSIONS: './storage/extensions',
     STATIC: './storage/static',
-    LOG: './storage/log'
+    LOG: './storage/log',
+    PUBLIC: './public'
 } as const;
 
 export function getDir(dir: keyof typeof relativeDirectories) {
