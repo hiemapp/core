@@ -1,9 +1,10 @@
 {
-    "include": ["src/"],
+    "include": ["src/", "@types/"],
     "exclude": ["**/ui/components/**.ts"],
     "compilerOptions": {
         "typeRoots": [
-            "node_modules/@types/"
+            "node_modules/@types/",
+            "src/@types/"
         ],
         "moduleResolution": "node",
         "target": "es2021",
@@ -22,8 +23,8 @@
         "jsxFactory": "jsx.h",
         "paths": {
             "~/*": ["src/*"],
-            "~types": ["types"],
-            "~types/*": ["types/*"]
+            "~types/*": ["@types/*"],
+            "~types": ["@types"]
         }
     }
 }

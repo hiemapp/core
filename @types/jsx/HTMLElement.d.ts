@@ -3,7 +3,6 @@ type NestedArray<T> = (((((T[] | T)[] | T)[] | T)[] | T)[] | T);
 export interface HTMLElement {
     attributes: {
         id?: string;
-        className?: NestedArray<string | undefined | null>;
         style?: {
             color?: string;
             backgroundColor?: string;

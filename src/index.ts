@@ -7,7 +7,6 @@ export * from './users/index';
 export * from './dashboard/index';
 export * as utils from './utils/index';
 export * as jsx from './ui/jsx';
-export type * from '../types';
 
 export * as api from './extensions/api';
 export { default as Config } from './lib/Config';
