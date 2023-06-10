@@ -1,11 +1,11 @@
 import TextElement from './TextElement';
-import { HTMLElementProps, HTMLElementListener, SerializedElement, ElementInterface, ValidElement, AnyElement } from '~types';
+import { HTMLElementProps, HTMLElementListener, SerializedElement, ElementInterface, ValidElement, AnyElement } from './types';
 import { formatElement } from './utils/helpers';
 import { flatten } from 'lodash';
 
 export default class HTMLElement implements ElementInterface {
     protected readonly tag: string;
-    protected readonly props: HTMLElementProps;
+    protected readonly props: HTMLElementProps & { className?: string };
     protected readonly children: ValidElement[] | null;
     protected readonly listeners: Record<string, HTMLElementListener> = {};
 

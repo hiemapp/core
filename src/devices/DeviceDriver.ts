@@ -1,7 +1,8 @@
 import ExtensionModule from '../extensions/ExtensionModule';
 import DeviceState from './DeviceState';
 import Device from './Device';
-import type { DeviceDriverManifest, DeviceDriverManifestInputType, DeviceProps } from 'types';
+import type { DeviceDriverManifest } from './DeviceDriver.types';
+import type { DeviceProps } from './Device.types';
 
 export default class DeviceDriver extends ExtensionModule {
     device: Device;

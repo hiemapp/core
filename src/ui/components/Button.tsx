@@ -1,9 +1,8 @@
-import { Component } from '~types';
-import * as jsx from '../jsx';
+import { Component, HTMLElementProps, HTMLElementListener } from '~/ui/types';
+import * as jsx from '../types';
 import type { ColorPalette } from '~/utils/style/colors';
-import { HTMLElementListener } from '~types';
 
-export interface ButtonProps extends JSX.Props {
+export interface ButtonProps extends HTMLElementProps {
     onClick?: HTMLElementListener;
     variant?: 'primary' | 'secondary' | 'unstyled' | 'link';
     active?: boolean;

@@ -1,4 +1,4 @@
-import { AnyElement } from './ui';
+import { AnyElement } from '../src/ui/types';
 
 declare global {
     namespace JSX {

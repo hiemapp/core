@@ -1,5 +1,5 @@
+import type { HTMLElementProps, HTMLElementListener, ValidElement, AnyElement } from './types';
 import HTMLElement from './HTMLElement';
-import type { HTMLElementProps, HTMLElementListener, ValidElement, AnyElement } from '~types';
 import { formatElement } from './utils/helpers';
 import { forOwn } from 'lodash';
 
@@ -10,8 +10,8 @@ export function h<TProps extends HTMLElementProps>(type: ((...args: any[]) => An
 
     if(childElements.length) {
         children = childElements;
-    } else if(config?.children?.length) {
-        children = config.children;
+    } else if((config as any)?.children?.length) {
+        children = (config as any).children;
     }
 
     const props: HTMLElementProps = {};

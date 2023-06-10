@@ -1,16 +1,15 @@
-import { Component } from '~types';
-import * as jsx from '../jsx';
+import { Component, HTMLElementProps } from '~/ui/types';
+import * as jsx from '../types';
 
 type ColumnSpan = 1|2|3|4|5|6|7|8|9|10|11|12|'auto';
 type ColumnBreakpoint = 'default'|'xs'|'sm'|'md'|'lg'|'xl';
-export interface ColumnProps extends JSX.Props {
+export interface ColumnProps extends HTMLElementProps {
     span?: ColumnSpan | Partial<Record<ColumnBreakpoint, ColumnSpan>>
-    className?: string
 }
 
-function getColClasses(span?: Required<ColumnProps>['span']) {
+function getColClassName(span?: Required<ColumnProps>['span']) {
     if(!span) {
-        return [];
+        return '';
     }
 
     if(typeof span === 'number') {
@@ -28,11 +27,11 @@ function getColClasses(span?: Required<ColumnProps>['span']) {
         classList.push(className);
     })
 
-    return classList;
+    return classList.join(' ');
 }
 
-const Column: Component<ColumnProps> = ({ span, className, ...props }) => (
-    <div {...props} className={[getColClasses(span), className]} />
+const Column: Component<ColumnProps> = ({ span, ...props }) => (
+    <div {...props} className={getColClassName(span)} />
 );
 
 export default Column;

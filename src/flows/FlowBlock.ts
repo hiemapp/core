@@ -1,5 +1,6 @@
 import ExtensionModule from '../extensions/ExtensionModule';
-import { FlowBlockManifest, FlowBlockTask } from 'types';
+import type { FlowBlockManifest } from './FlowBlockManifest.types';
+import type { FlowBlockTask } from './FlowBlockTask.types';
 import type FlowBlockContext from './FlowBlockContext/FlowBlockContext';
 
 export default class FlowBlock extends ExtensionModule {

@@ -1,4 +1,4 @@
-import { SerializedElement, ElementInterface } from '~types';
+import { SerializedElement, ElementInterface } from './types';
 
 export default class TextElement implements ElementInterface {
     text: string;

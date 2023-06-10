@@ -4,3 +4,7 @@ export { default as FlowBlockCategory } from './FlowBlockCategory';
 export { default as FlowContext } from './FlowContext/FlowContext';
 export { default as FlowBlockContext } from './FlowBlockContext/FlowBlockContext';
 export { default as FlowController } from './FlowController';
+export * from './Flow.types';
+export * from './FlowBlockCategory.types';
+export * from './FlowBlockManifest.types';
+export * from './FlowBlockTask.types';

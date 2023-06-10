@@ -1,4 +1,6 @@
-import { Constructor, FlowScriptBlock, FlowBlockManifest, FlowBlockCustomTaskData, FlowTaskData } from 'types';
+import type { Constructor } from '~types/helpers';
+import type { FlowScriptBlock, FlowBlockCustomTaskData, FlowTaskData  } from '~/flows/Flow.types';
+import type { FlowBlockManifest } from '~/flows/FlowBlockManifest.types'
 import { logger } from '../../lib';
 import FlowBlockStatementContext from './FlowBlockStatementContext';
 import FlowBlockParameterContext from './FlowBlockParameterContext';
@@ -7,7 +9,7 @@ import ExtensionController from '~/extensions/ExtensionController';
 import FlowContext from '../FlowContext/FlowContext';
 import { PromiseAllObject } from '~/utils/Promise';
 import { ensureFind } from '~/utils/object';
-import Taskrunner, { TaskrunnerTask } from '~/lib/Taskrunner';
+import Taskrunner from '~/lib/Taskrunner';
 
 export interface FlowBlockContextTimedTaskEvent {
     keyword: string,
@@ -52,6 +54,10 @@ export default class FlowBlockContext {
 
     root() {
         return this.flow;
+    }
+
+    isOfType(moduleClass: Constructor<FlowBlock>) {
+        return this.typeInstance instanceof moduleClass;
     }
 
     hasParent() {

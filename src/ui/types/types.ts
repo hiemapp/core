@@ -1,4 +1,4 @@
-import type { HTMLElement } from '../../src/@types/jsx';
+import type { HTMLElement } from './jsx';
 
 export interface ElementInterface {
     serialize: () => SerializedElement;

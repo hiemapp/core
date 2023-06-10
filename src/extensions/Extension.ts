@@ -5,7 +5,7 @@ import { globSync } from 'glob';
 import ExtensionModule, { type ExtensionModuleName } from './ExtensionModule';
 import type Manifest from '../utils/Manifest';
 import fs from 'fs';
-import { Constructor } from 'types';
+import { Constructor } from '~types/helpers';
 import ExtensionModuleNotRegisteredError from '../errors/ExtensionModuleNotRegisteredError';
 import { resolveTypeClass } from './utils';
 

@@ -1,4 +1,5 @@
-import type { FlowScriptBlock, FlowScriptBlockParameter, FlowScriptBlockStatement, FlowBlockManifest, FlowBlockManifestParameter, FlowBlockManifestStatement } from 'types';
+import type { FlowScriptBlock, FlowScriptBlockParameter, FlowScriptBlockStatement } from '~/flows/Flow.types';
+import type { FlowBlockManifest, FlowBlockManifestParameter, FlowBlockManifestStatement } from '~/flows/FlowBlockManifest.types'
 import type FlowBlockContext from './FlowBlockContext';
 
 export default abstract class FlowBlockInputContext {

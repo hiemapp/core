@@ -1,4 +1,4 @@
-import type { FlowScript } from 'types';
+import type { FlowScript } from '~/flows/Flow.types';
 import FlowBlockContext from '../FlowBlockContext/FlowBlockContext';
 import type Flow from '../Flow';
 

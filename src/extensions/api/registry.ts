@@ -1,6 +1,6 @@
 
 import type Extension from '../Extension';
-import { Constructor } from 'types';
+import { Constructor } from '~types/helpers';
 import ExtensionModule from '../ExtensionModule';
 import { resolveExtensionFromStack, resolveTypeClass } from '../utils';
 import _ from 'lodash';

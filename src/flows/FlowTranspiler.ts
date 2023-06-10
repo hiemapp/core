@@ -1,5 +1,5 @@
 import { forOwn } from 'lodash';
-import type { FlowBlocklyWorkspace, FlowBlocklyWorkspaceBlock, FlowScript, FlowScriptBlock } from 'types';
+import type { FlowBlocklyWorkspace, FlowBlocklyWorkspaceBlock, FlowScript, FlowScriptBlock } from './Flow.types';
 import ExtensionController from '../extensions/ExtensionController';
 import FlowBlock from './FlowBlock';
 import { logger } from '../lib';

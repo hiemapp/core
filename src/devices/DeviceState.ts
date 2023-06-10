@@ -3,7 +3,7 @@ import type {
     DeviceStateDisplayButton, 
     DeviceStateDisplayTile, 
     DeviceStateDisplayRecording 
-} from 'types';
+} from './DeviceState.types';
 
 export default class DeviceState {
     _isActive: boolean;

@@ -1,4 +1,4 @@
-import type { DeviceStateDisplay } from './DeviceState';
+import type { DeviceStateDisplay } from './DeviceState.types';
 
 export interface DeviceProps {
     id: number;

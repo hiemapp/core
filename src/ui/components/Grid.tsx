@@ -1,7 +1,7 @@
 import { Component, HTMLElementProps } from '~/ui/types';
 import * as jsx from '../types';
 
-export interface BoxProps extends HTMLElementProps {
+export interface GridProps extends HTMLElementProps {
     direction?: 'row' | 'column' | 'row-reverse' | 'column-reverse';
     gy?: 0 | 1 | 2 | 3 | 4 | 5;
     gx?: 0 | 1 | 2 | 3 | 4 | 5;
@@ -10,8 +10,8 @@ export interface BoxProps extends HTMLElementProps {
     wrap?: boolean;
 }
 
-const Box: Component<BoxProps> = (props) => (
-    <clientelement tag="Box" props={props} />
+const Grid: Component<GridProps> = (props) => (
+    <clientelement tag="Grid" props={props} />
 )
 
-export default Box;
+export default Grid;

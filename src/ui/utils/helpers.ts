@@ -1,4 +1,4 @@
-import { AnyElement, SerializedElement, ValidElement } from '~types';
+import { AnyElement, SerializedElement, ValidElement } from '../types';
 import TextElement from '../TextElement';
 import HTMLElement from '../HTMLElement';
 

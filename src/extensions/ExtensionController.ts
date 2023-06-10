@@ -6,7 +6,7 @@ import { getDir } from '~/utils/paths';
 import Extension from '../extensions/Extension';
 import ExtensionModule from './ExtensionModule';
 import ExtensionNotInstalledError from '../errors/ExtensionNotInstalledError';
-import { Constructor } from 'types';
+import { Constructor } from '~types/helpers';
 import Manifest from '../utils/Manifest';
 
 export default class ExtensionController extends Controller<Extension>() {

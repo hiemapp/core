@@ -1,8 +1,10 @@
-import type { Component } from '../../../types';
-import * as jsx from '../jsx';
+import type { Component, HTMLElementProps } from '~/ui/types';
+import * as jsx from '../types';
 
-export interface TileProps extends JSX.Props {
+export interface TileProps extends HTMLElementProps {
     size?: 'sm'|'md'|'lg';
+    background?: string;
+    color?: string;
 }
 
 const Tile: Component<TileProps> = (props) => (

@@ -35,9 +35,5 @@ export interface FlowBlockManifest {
     };
     helpUrl?: string;
 }
-export interface FlowBlockTask<TData = any> {
-    keyword: string;
-    data: TData;
-}
 export interface FlowBlockManifestSerialized extends FlowBlockManifest {
 }

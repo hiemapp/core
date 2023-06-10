@@ -1,4 +1,5 @@
-import type { FlowBlockManifestStatement, FlowScriptBlockStatement } from 'types';
+import type { FlowScriptBlockStatement } from '~/flows/Flow.types';
+import type { FlowBlockManifestStatement } from '~/flows/FlowBlockManifest.types'
 import type FlowBlockContext from './FlowBlockContext';
 import FlowBlockInputContext from './FlowBlockInputContext';
 import { ensureFind } from '~/utils/object';

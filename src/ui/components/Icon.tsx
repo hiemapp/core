@@ -1,9 +1,9 @@
 import { Icon as IconId } from '~/utils/icons';
 import { Color } from '~/utils/style/colors';
-import { Component } from '~types';
-import * as jsx from '../jsx';
+import { Component, HTMLElementProps } from '~/ui/types';
+import * as jsx from '../types';
 
-export interface IconProps {
+export interface IconProps extends HTMLElementProps {
     id: IconId;
     size?: number | string;
     weight?: 'light' | 'solid';

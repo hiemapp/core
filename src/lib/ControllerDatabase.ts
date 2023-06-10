@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import { Constructor } from 'types';
+import { Constructor } from '~types/helpers';
 import ModelWithProps from './ModelWithProps';
 import Database from './Database';
 import Controller from './Controller';

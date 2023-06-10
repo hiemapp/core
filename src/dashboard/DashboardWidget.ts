@@ -1,18 +1,10 @@
 import ExtensionModule from '~/extensions/ExtensionModule';
 import icons from '~/utils/icons';
 import { WebSocket } from '~/lib';
-import { colors, type Color } from '~/utils/style/colors';
-import type { HTMLElementListener } from '~types/ui';
-import type { Icon } from '~/utils/icons';
-import type { AnyElement } from '~types/ui';
-
-export interface DashboardWidgetManifest {
-    title: string;
-    color: Color;
-    icon: Icon;
-}
-
-export type DashboardWidgetContent = AnyElement;
+import { colors } from '~/utils/style/colors';
+import type { HTMLElementListener } from '~/ui/types';
+import type { DashboardWidgetManifest } from './DashboardWidgetManifest.types';
+import type { DashboardWidgetContent } from './DashboardWidgetContent.types';
 
 export default class DashboardWidget<TState extends Record<string, any> = {}> extends ExtensionModule {
     #state: TState = {} as TState;

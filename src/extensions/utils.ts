@@ -3,7 +3,7 @@ import path from 'path';
 import StackTrace from 'stacktrace-js';
 import Manifest from '../utils/Manifest';
 import ExtensionController from '../extensions/ExtensionController';
-import { type Constructor } from 'types';
+import { type Constructor } from '~types/helpers';
 import type ExtensionModule from './ExtensionModule';
 
 export function resolveExtensionFromStack() {

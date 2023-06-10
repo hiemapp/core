@@ -1,4 +1,4 @@
-import { HTMLElement } from '../HTMLElement'
+import type { HTMLElement } from '../HTMLElement.types'
 
 export type HTMLAnchorElement = HTMLElement & {
     attributes: {

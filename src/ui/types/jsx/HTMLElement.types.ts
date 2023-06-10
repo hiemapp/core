@@ -1,5 +1,3 @@
-type NestedArray<T> = (((((T[] | T)[] | T)[] | T)[] | T)[] | T);
-
 export interface HTMLElement {
     attributes: {
         id?: string;
@@ -27,7 +25,7 @@ export interface HTMLElement {
 
             opacity?: number;
 
-            [key: string]: string | number;
+            [key: string]: string | number | undefined;
         }
     }
 }

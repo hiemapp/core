@@ -1,6 +1,6 @@
 import ExtensionModule from '../extensions/ExtensionModule';
 import Device from './Device';
-import type { DeviceProps } from '~types';
+import type { DeviceProps } from './Device.types';
 
 export default class DeviceConnector extends ExtensionModule {
     protected idOptionKey = 'id';

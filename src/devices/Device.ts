@@ -7,9 +7,10 @@ import DeviceController from './DeviceController';
 import Manifest from '../utils/Manifest';
 import RecordManager from '../records/RecordManager';
 import _ from 'lodash';
-import type { DeviceProps, DevicePropsSerialized, DeviceDriverManifest } from 'types';
+import type { DeviceDriverManifest } from './DeviceDriver.types';
+import type { DeviceProps, DevicePropsSerialized, } from './Device.types';
 import type { ModelWithPropsConfig } from '../lib/ModelWithProps';
-import { Constructor } from 'types';
+import { Constructor } from '~types/helpers';
 
 export default class Device extends ModelWithProps<DeviceProps, DevicePropsSerialized> {
     _getConfig(): ModelWithPropsConfig<DeviceProps, DevicePropsSerialized> {

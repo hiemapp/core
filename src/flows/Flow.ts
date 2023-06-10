@@ -1,7 +1,7 @@
 import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
 import _ from 'lodash';
 import FlowController from './FlowController';
-import { FlowBlocklyWorkspace, FlowProps, FlowBlockCustomTaskData } from 'types';
+import { FlowBlocklyWorkspace, FlowProps, FlowBlockCustomTaskData } from './Flow.types';
 import FlowBlockContext from './FlowBlockContext/FlowBlockContext';
 import FlowTranspiler from './FlowTranspiler';
 import FlowContext from './FlowContext/FlowContext';
