@@ -50,6 +50,10 @@ export default class Flow extends ModelWithProps<FlowProps> {
     init() {
         Taskrunner.on('task', e => this.handleBlockCustomTask(e));
     }
+
+    getBlocks() {
+        return Object.values(this.createContext().blocks);
+    }
     
     protected createContext() {
         const transpiler = new FlowTranspiler();
