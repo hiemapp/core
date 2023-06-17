@@ -32,7 +32,9 @@ export default class Language extends ModelWithProps<LanguageProps, LanguageProp
         let prefixedMessages: Record<string, any> = {};
 
         _.forOwn(messages, (message, id) => {
-            prefixedMessages[prefix ? `${prefix}.${id}` : id] = message;
+            // Id's that start with 'global.' shouldn't be prefixed
+            const prefixedId = prefix && !id.startsWith('global.') ? `${prefix}.${id}` : id;
+            prefixedMessages[prefixedId] = message;
         });
 
         this.setProp('messages', Object.assign({}, this.getProp('messages'), prefixedMessages));
