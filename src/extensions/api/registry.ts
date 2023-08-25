@@ -1,37 +1,49 @@
 
 import type Extension from '../Extension';
 import { Constructor } from '~types/helpers';
-import ExtensionModule from '../ExtensionModule';
+import { ExtensionModuleClass } from '../ExtensionModule';
 import { resolveExtensionFromStack, resolveTypeClass } from '../utils';
 import _ from 'lodash';
+import { FlowBlock } from './flows';
 
-export function registerModule<T extends ExtensionModule>(
+export function registerModule<T extends ExtensionModuleClass>(
     name: string,
-    callback: ((extension: Extension) => Constructor<T> | null),
-    validate?: (prototype: T, moduleClass: Constructor<T>) => boolean | string | Error | void,
+    callback: ((extension: Extension) => T | null),
+    validate?: (prototype: InstanceType<T>, moduleClass: T) => boolean | string | Error | void,
 ) {
     const extension = resolveExtensionFromStack();
+    let typeClass;
 
     try {
-        let moduleClass = callback(extension);
+        const moduleClass = callback(extension);
 
-        if (!(moduleClass?.prototype instanceof ExtensionModule)) {
-            throw new Error(`Must extend ${ExtensionModule.name}, received ${module}.`);
+        if (!(moduleClass?.isExtensionModule)) {
+            throw new Error(`${module} is not an ExtensionModule.`);
         }
 
         // Resolve the type of module (i.e. FlowBlock, DeviceDriver)
-        var typeClass = resolveTypeClass(moduleClass);
+        typeClass = resolveTypeClass(moduleClass);
+        if(!typeClass) {
+            throw new Error('Failed to resolve typeclass.');
+        }
 
         if (typeof validate === 'function') {
-            const result = validate(moduleClass.prototype as T, moduleClass);
+            const result = validate(moduleClass.prototype as any, moduleClass);
             if(result !== true && typeof result !== 'undefined') {
                 throw result;
+            }
+        }
+        
+        if(typeof moduleClass.init === 'function') {
+            moduleClass.init();
+
+            if(moduleClass.extensionModuleConfig.manifestRequired === true && !moduleClass.manifest) {
+                throw new Error('A manifest is required, but was not defined. Use this.defineManifest() in the static init() method to define it.');
             }
         }
 
         extension.registerModule(name, moduleClass, typeClass);
     } catch(err: any) {
-        extension.logger.error(`Error registering '${name}':`, { err });
+        extension.logger.error(`Error registering ${typeClass ? `${typeClass.name} ` : ''}'${name}':`, { err });
     }
-
 }

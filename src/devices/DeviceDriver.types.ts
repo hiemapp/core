@@ -1,11 +1,13 @@
-export type DeviceDriverManifestInputType = 'toggle' | 'color' | 'open' | 'close' | 'stop';
+import { type Color } from '~/utils/style/colors';
+
+export type DeviceDriverManifestInputType = 'TOGGLE' | 'COLOR' | 'OPEN' | 'CLOSE' | 'STOP';
 export interface DeviceDriverManifest {
     recording?: {
         supported?: boolean;
         fields?: Array<{
             name: string;
-            type: string;
-            color?: string;
+            // type: string;
+            color?: Color;
             primary?: boolean;
         }>;
     };

@@ -1,28 +1,22 @@
-import type { FlowScriptBlock, FlowScriptBlockParameter, FlowScriptBlockStatement } from '~/flows/Flow.types';
-import type { FlowBlockManifest, FlowBlockManifestParameter, FlowBlockManifestStatement } from '~/flows/FlowBlockManifest.types'
+import type { FlowScriptBlockParameter, FlowScriptBlockStatement } from '~/flows/Flow.types';
+import type { FlowBlockLayoutParameter, FlowBlockLayoutStatement } from '~/flows/FlowBlockLayout.types'
 import type FlowBlockContext from './FlowBlockContext';
 
 export default abstract class FlowBlockInputContext {
     readonly id: string;
-    protected block: FlowBlockContext;
-    protected blockDef: FlowScriptBlock;
-    protected blockManifest: FlowBlockManifest;
-    protected abstract manifest: FlowBlockManifestParameter | FlowBlockManifestStatement;
+    protected blockCtx: FlowBlockContext;
+    protected abstract layout: FlowBlockLayoutParameter | FlowBlockLayoutStatement;
     protected abstract def: FlowScriptBlockParameter | FlowScriptBlockStatement;
 
     constructor(
         id: string, 
-        block: FlowBlockContext, 
-        blockDef: FlowScriptBlock, 
-        blockManifest: FlowBlockManifest
+        blockCtx: FlowBlockContext
     ) {
         this.id = id;
-        this.block = block;
-        this.blockDef = blockDef;
-        this.blockManifest = blockManifest;
+        this.blockCtx = blockCtx;
 
         this.init();
     }
 
-    abstract init(): void;
+    protected abstract init(): void;
 }

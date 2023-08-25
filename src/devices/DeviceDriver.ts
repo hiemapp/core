@@ -1,12 +1,16 @@
-import ExtensionModule from '../extensions/ExtensionModule';
+import { ExtensionModuleFactory, type ExtensionModuleConfig } from '../extensions/ExtensionModule';
 import DeviceState from './DeviceState';
 import Device from './Device';
 import type { DeviceDriverManifest } from './DeviceDriver.types';
 import type { DeviceProps } from './Device.types';
 
-export default class DeviceDriver extends ExtensionModule {
+export default class DeviceDriver extends ExtensionModuleFactory<DeviceDriverManifest>() {
     device: Device;
     options: any;
+
+    static extensionModuleConfig: ExtensionModuleConfig = {
+        manifestRequired: true
+    }
 
     /**
      * Create a new instance.
@@ -24,11 +28,7 @@ export default class DeviceDriver extends ExtensionModule {
     /**
      * Is called once to allow for setting up any event listeners.
      */
-    setup(): void {}
-
-    getManifest(): DeviceDriverManifest {
-        return {};
-    }
+    setup(): void { }
 
     /**
      * Create a DeviceState representing the current state of the device.
@@ -58,5 +58,9 @@ export default class DeviceDriver extends ExtensionModule {
      */
     handleInput(name: string, value: any, callback: (err?: Error) => any): void {
         callback();
+    }
+
+    getInputs() {
+        return this.manifest.getArr('inputs');
     }
 }

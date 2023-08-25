@@ -29,7 +29,7 @@ export default function ControllerDatabase<T extends ModelWithProps<any>>() {
                     data[row.id] = callback(row, rows);
                     return;
                 }
-
+                
                 data[row.id] = new model(row.id, _.omit(row, 'id'));
             });
 

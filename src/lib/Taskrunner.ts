@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import Database from './Database';
 import Logger from './Logger';
 import { uuid } from '../utils/string';
+import _ from 'lodash';
 
 export interface TaskrunnerTask<TData = any> {
     date: Date | null,
@@ -20,8 +21,8 @@ export interface TaskrunnerTaskEvent<TData = any> {
 }
 
 class TaskrunnerClass extends EventEmitter {
-    intervalId: NodeJS.Timer;
-    tasks: TaskrunnerTask[] = [];
+    intervalId: NodeJS.Timeout;
+    tasks: Record<string, TaskrunnerTask>;
     tasksLatestFetchTime: number;
     logger: Logger;
     taskMeta: Record<string, TaskRunnerTaskMeta | undefined> = {};
@@ -45,7 +46,7 @@ class TaskrunnerClass extends EventEmitter {
     constructor() {
         super();
 
-        this.logger = new Logger({ label: 'TaskRunner' });
+        this.logger = new Logger({ label: 'Taskrunner' });
     }
 
     async startTimer() {
@@ -71,18 +72,18 @@ class TaskrunnerClass extends EventEmitter {
     }
 
     async registerTimedTask<TData = any>(date: Date, keyword: string, data?: TData): Promise<string> {
-        const uuid = await this.createTask<TData>(date, keyword, data);
+        const uuid = await this.createTask<TData>(date, null, keyword, data);
         return uuid;
     }
 
-    async registerRepeatingTask<TData = any>(intervalMs: number, keyword: string, data?: TData): Promise<string> {
+    async registerRepeatingTask<TData = any>(intervalSeconds: number, keyword: string, data?: TData): Promise<string> {
         // Task interval should be at least this.REPEATING_TASK_MIN_INTERVAL
-        if(intervalMs < this.REPEATING_TASK_MIN_INTERVAL) {
-            this.logger.warn(`Increasing interval of repeating task '${keyword}' to ${this.REPEATING_TASK_MIN_INTERVAL}ms (was ${intervalMs}).`)
-            intervalMs = this.REPEATING_TASK_MIN_INTERVAL;
+        if(intervalSeconds < this.REPEATING_TASK_MIN_INTERVAL) {
+            this.logger.warn(`Increasing interval of repeating task '${keyword}' to ${this.REPEATING_TASK_MIN_INTERVAL}ms (was ${intervalSeconds}).`)
+            intervalSeconds = this.REPEATING_TASK_MIN_INTERVAL;
         }
         
-        const uuid = await this.createTask<TData>(intervalMs, keyword, data);
+        const uuid = await this.createTask<TData>(null, intervalSeconds, keyword, data);
         return uuid;
     }
     
@@ -94,34 +95,34 @@ class TaskrunnerClass extends EventEmitter {
         this.taskMeta[taskUuid] = Object.assign(this.taskMeta[taskUuid] ?? {}, taskMeta);
     }
 
-    findAll(keyword: string) {
-        return this.tasks.filter(t => t.keyword === keyword);
-    }
-
     indexTasks() {
-        return [...this.tasks];
+        return {...this.tasks};
     }
 
     async deleteTask(taskUuid: string): Promise<void> {
+        if(!this.findTask(taskUuid)) return;
+
+        this.logger.debug(`Deleting task '${taskUuid}'.`);
+
         // Delete the task from the database
         Database.query('DELETE FROM `tasks` WHERE `uuid` = ? ', [ taskUuid ]);
 
+        // Delete the task locally
+        delete this.tasks[taskUuid];
+
         // Delete local task meta
         delete this.taskMeta[taskUuid];
-
-        // Delete the task locally
-        this.tasks = this.tasks.filter(t => t.uuid !== taskUuid);
     }
 
     protected async checkTasks() {
         const now = Date.now();
 
-        this.tasks.forEach(task => {
+        _.forOwn(this.tasks, task => {
             const meta = this.getTaskMeta(task.uuid);
             if(meta?.isBeingPrepared) return true;
 
             if(task.date) {
-                // If the task's time has already passed, delete and skip over it.
+                // If the task's date has already passed, delete and skip over it.
                 if(task.date.getTime() + this.EXPIRED_TASK_DELETE_AFTER < now) {
                     this.deleteTask(task.uuid);
                     return true;
@@ -129,23 +130,20 @@ class TaskrunnerClass extends EventEmitter {
 
                 // Run the task if it's time is close to the current time
                 if (task.date.getTime() - now <= this.TASK_PREPARE_MIN_TIME_DIFF) {
+                    console.log({ d: 0 });
                     this.prepareTaskForExecution(task.uuid);
                 }
             } else if(task.interval) {
-                if(now % task.interval > (task.interval - this.CHECK_TASKS_INTERVAL*1.25)) {
+                if(now % task.interval*1000 > (task.interval*1000 - this.CHECK_TASKS_INTERVAL*1.25)) {
                     this.prepareTaskForExecution(task.uuid);
                 }
             }
         })
     }
 
-    protected async createTask<TData = any>(date: Date, keyword: string, data?: TData): Promise<string>;
-    protected async createTask<TData = any>(intervalMs: number, keyword: string, data?: TData): Promise<string>
-    protected async createTask<TData = any>(dateOrInterval: Date | number, keyword: string, data?: TData): Promise<string> {
+    protected async createTask<TData = any>(date: Date | null = null, interval: number | null = null, keyword: string, data?: TData): Promise<string> {
         const taskUuid = uuid();
-        const date = (dateOrInterval instanceof Date ? dateOrInterval : null);
-        const interval = (dateOrInterval instanceof Date ? null : dateOrInterval);
-
+        
         const taskRow: TaskrunnerTask = { 
             date,
             interval, 
@@ -180,6 +178,8 @@ class TaskrunnerClass extends EventEmitter {
         // Return if the task can not be found
         // or if it's already being prepared.
         if(!task || meta?.isBeingPrepared) return;
+
+        this.logger.debug(`Preparing task '${task.uuid}.'`);
         
         this.updateTaskMeta(task.uuid, { 
             isBeingPrepared: true 
@@ -196,7 +196,7 @@ class TaskrunnerClass extends EventEmitter {
                 this.deleteTask(task.uuid);
             }, msDelay);
         } else if(task.interval) {
-            const msDelay = task.interval - (Date.now() % task.interval);
+            const msDelay = task.interval*1000 - (Date.now() % task.interval*1000);
 
             setTimeout(() => {
                 // Check if the task still exists before executing
@@ -217,13 +217,17 @@ class TaskrunnerClass extends EventEmitter {
     }
 
     protected findTask(taskUuid: string) {
-        return this.tasks.find(t => t.uuid === taskUuid);
+        return this.tasks[taskUuid];
     }
 
     async refetchTasks(): Promise<void> {
         this.logger.debug('Refetching tasks from database.');
 
-        this.tasks = await Database.query('SELECT * FROM `tasks`');
+        this.tasks = {};
+        (await Database.query('SELECT * FROM `tasks`')).forEach(row => {
+            this.tasks[row.uuid] = row;
+        })
+
         this.tasksLatestFetchTime = Date.now();
     }
 }

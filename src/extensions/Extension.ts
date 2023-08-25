@@ -2,19 +2,17 @@ import Model, { ModelConfig } from '../lib/Model';
 import * as _ from 'lodash';
 import * as path from 'path';
 import { globSync } from 'glob';
-import ExtensionModule, { type ExtensionModuleName } from './ExtensionModule';
+import { type ExtensionModuleName, type ExtensionModuleClass } from './ExtensionModule';
 import type Manifest from '../utils/Manifest';
 import fs from 'fs';
-import { Constructor } from '~types/helpers';
 import ExtensionModuleNotRegisteredError from '../errors/ExtensionModuleNotRegisteredError';
-import { resolveTypeClass } from './utils';
 
 const GLOB_PATTERN_MODULES = 'modules/**/*/index.js';
 const GLOB_PATTERN_ASSETS = ['assets/language/*.json'];
 
 interface ExtensionModules {
     [key: string]: {
-        [key: string]: any & Constructor<ExtensionModule>;
+        [key: string]: (ExtensionModuleClass & any) | undefined;
     };
 }
 
@@ -39,51 +37,21 @@ class Extension extends Model<string> {
         return this;
     }
 
-    // /**
-    //  * Get a module from the extension.
-    //  * @param moduleType - The type of extension module.
-    //  * @param id - The id of the module.
-    //  * @param throwOnFail -
-    //  * @returns
-    //  */
-    // getModule(moduleType, id, throwOnFail = true) {
-    //     // Check if the module exists
-    //     if(!this.modules[moduleType] || !this.modules[moduleType][id]) {
-    //         if(throwOnFail)
-    //             throw new ExtensionModuleNotFoundError(this, moduleType, id);
-    //         return null;
-    //     }
-
-    //     // Return the module
-    //     return this.modules[moduleType][id];
-    // }
-
-    // /**
-    //  * Checks whether the extension has a given model.
-    //  * @param {string} moduleType - The type of module to find.
-    //  * @param {string} id - The id of the module to find.
-    //  * @returns {boolean} - Whether the extension has the module.
-    //  */
-    // hasModule(moduleType, id) {
-    //     return !!this.getModule(moduleType, id, false);
-    // }
-
     /**
      * Register a module.
      * @param moduleClass - The module to register.
      */
     registerModule(
         moduleName: string,
-        moduleClass: Constructor<ExtensionModule>,
-        typeClass: Constructor<ExtensionModule>,
+        moduleClass: ExtensionModuleClass,
+        typeClass: ExtensionModuleClass,
     ) {
         this.modules[typeClass.name] = this.modules[typeClass.name] || {};
-        const moduleSlug = `${this._id}.${moduleName}`;
+        const moduleSlug = `${this.__modelId}.${moduleName}`;
 
         // If a module of this type and with this slug already exists, log an error.
-        if (this.modules[typeClass.name][moduleName]?.prototype instanceof ExtensionModule) {
-            this.logger.error(`${typeClass.name} '${moduleSlug}' was already registered.`);
-            return;
+        if (this.modules[typeClass.name][moduleName]?.isExtensionModule === true) {
+            throw new Error(`${typeClass.name} '${moduleSlug}' was already registered.`);
         }
 
         this.modules[typeClass.name][moduleName] = moduleClass;
@@ -97,12 +65,12 @@ class Extension extends Model<string> {
      * @param name - The name of the module to find.
      * @returns The module.
      */
-    getModule<T extends Constructor<ExtensionModule>>(type: T, name: ExtensionModuleName): T {
+    getModule<T extends ExtensionModuleClass>(type: T, name: ExtensionModuleName) {
         const module = this.getModuleOrFail(type, name);
 
-        if (module?.prototype instanceof ExtensionModule) return module;
+        if (module?.isExtensionModule === true) return module;
 
-        throw new ExtensionModuleNotRegisteredError(`${type.name} '${this._id}.${name}' is not registered.`);
+        throw new ExtensionModuleNotRegisteredError(`${type.name} '${this.__modelId}.${name}' is not registered.`);
     }
 
     /**
@@ -111,13 +79,12 @@ class Extension extends Model<string> {
      * @param name - The name of the module to find.
      * @returns The module.
      */
-    getModuleOrFail<T extends Constructor<ExtensionModule>>(type: T, name: ExtensionModuleName): T | null {
+    getModuleOrFail<T extends ExtensionModuleClass>(type: T, name: ExtensionModuleName): T | null {
         if (!_.isPlainObject(this.modules[type.name])) return null;
 
         const module = this.modules[type.name][name];
-        if (!(module?.prototype instanceof ExtensionModule)) return null;
 
-        return module;
+        return module?.isExtensionModule === true ? module : null;
     }
 
     /**

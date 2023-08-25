@@ -10,7 +10,7 @@ import ExtensionController from '../extensions/ExtensionController';
 import FlowBlock from './FlowBlock';
 
 export default class Flow extends ModelWithProps<FlowProps> {
-    _getConfig(): ModelWithPropsConfig<FlowProps, FlowProps> {
+    __modelConfig(): ModelWithPropsConfig<FlowProps, FlowProps> {
         return {
             controller: FlowController,
             defaults: {
@@ -24,37 +24,32 @@ export default class Flow extends ModelWithProps<FlowProps> {
         }
     }
 
-    updateWorkspace(wpc: FlowBlocklyWorkspace) {
-        this.setProp('blocklyWorkspace', wpc);
-        this.reload();
-    }
-
-    reload() { 
-        console.log('reload!');
+    reload() {
+        this.logger.debug('Reloading...');
         const { blocks } = this.createContext();
 
         // Remove all existing tasks for this flow
         const tasks = Taskrunner.indexTasks();
         tasks.forEach(t => {
-            if(t.keyword === 'FLOW_TASK' && t.data.ctx.flowId === this.getId()) {
+            if (t.keyword === 'FLOW_TASK' && t.data.ctx.flowId === this.getId()) {
                 Taskrunner.deleteTask(t.uuid);
             }
         })
-        
+
         // Mount all the blocks
-        Object.values(blocks).forEach(block => {
-            block.mount();
+        Object.values(blocks).forEach(blockCtx => {
+            blockCtx.mount();
         })
     }
 
-    init() {
+    protected init() {
         Taskrunner.on('task', e => this.handleBlockCustomTask(e));
     }
 
     getBlocks() {
         return Object.values(this.createContext().blocks);
     }
-    
+
     protected createContext() {
         const transpiler = new FlowTranspiler();
         const script = transpiler.transpileWorkspace(this.getProp('blocklyWorkspace'));
@@ -73,8 +68,8 @@ export default class Flow extends ModelWithProps<FlowProps> {
     }
 
     protected handleBlockCustomTask(e: TaskrunnerTaskEvent<FlowBlockCustomTaskData>) {
-        if(e.task.data.taskType !== 'CUSTOM') return;
-        if(e.task.data.ctx.flowId !== this.getId()) return;
+        if (e.task.data.taskType !== 'CUSTOM') return;
+        if (e.task.data.ctx.flowId !== this.getId()) return;
 
         try {
             const data = e.task.data;
@@ -86,9 +81,9 @@ export default class Flow extends ModelWithProps<FlowProps> {
                 keyword: e.task.data.originalKeyword,
                 data: e.task.data.originalData
             };
-            
+
             blockType.prototype.handleTask(task, blockCtx);
-        } catch(err: any) {
+        } catch (err: any) {
             this.logger.error(err);
         }
     }
@@ -97,7 +92,7 @@ export default class Flow extends ModelWithProps<FlowProps> {
         const { blocks } = this.createContext();
 
         Object.values(blocks).forEach(block => {
-            if(!block.hasParent()) {
+            if (!block.hasParent()) {
                 block.execute();
             }
         })

@@ -7,4 +7,5 @@ export { default as FlowController } from './FlowController';
 export * from './Flow.types';
 export * from './FlowBlockCategory.types';
 export * from './FlowBlockManifest.types';
+export * from './FlowBlockLayout.types';
 export * from './FlowBlockTask.types';

@@ -5,6 +5,7 @@ import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
 import UserController from './UserController';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { getDir } from '~/utils/paths';
+import type Model from '~/lib/Model';
 
 export interface UserProps {
     id: number;
@@ -14,10 +15,10 @@ export interface UserProps {
     password: string | null;
 }
 
-export interface SerializedUserProps extends UserProps {}
+export interface SerializedUserProps extends UserProps { }
 
 export default class User extends ModelWithProps<UserProps, SerializedUserProps> {
-    _getConfig(): ModelWithPropsConfig<UserProps, SerializedUserProps> {
+    __modelConfig(): ModelWithPropsConfig<UserProps, SerializedUserProps> {
         return {
             controller: UserController,
             defaults: {
@@ -29,7 +30,12 @@ export default class User extends ModelWithProps<UserProps, SerializedUserProps>
         }
     }
 
-    hasPermission(key: string) {
+    hasPermission<TModel extends Model<any>>(model: TModel, action: 'view' | 'input') {
+        const key = `${model.constructor.name}.${model.getId()}.${action}`;
+        return this.hasPermissionKey(key);
+    }
+
+    hasPermissionKey(key: string) {
         const permissions = this.getProp('permissions');
 
         if (!permissions || !_.isPlainObject(permissions)) return false;
@@ -51,7 +57,7 @@ export default class User extends ModelWithProps<UserProps, SerializedUserProps>
     }
 
     getPicturePath() {
-        const filepath = path.join(getDir('STATIC'), 'users', 'pictures', this._id + '.jpg');
+        const filepath = path.join(getDir('STATIC'), 'users', 'pictures', this.__modelId + '.jpg');
         if (!fs.existsSync(filepath)) return null;
 
         return filepath;

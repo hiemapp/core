@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 import * as mysql from 'mysql2';
-import { logger } from './Logger';
+import dayjs from 'dayjs';
 
 export interface IDatabaseCredentials {
     host: string,
@@ -53,7 +53,7 @@ class Database {
     static serializeFields(fields: IDatabaseFields): string {
         const encodedFields = _.mapValues(fields, (v, k) => {
             if(v instanceof Date) {
-                return v.toISOString();
+                return v.toISOString().slice(0, 19).replace('T', ' ');
             }
 
             if(v !== null && (Array.isArray(v) || _.isPlainObject(v))) {

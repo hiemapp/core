@@ -1,1 +1,1 @@
-export { Device, DeviceDriver, DeviceConnector, DeviceController, DeviceState } from '~/devices';
+export { Device, DeviceDriver, DeviceConnector, DeviceController, DeviceState, DeviceDriverManifest } from '~/devices';

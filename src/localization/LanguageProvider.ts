@@ -7,14 +7,14 @@ export type NestedMessagesMap = {
     [key: string]: NestedMessagesMap | string
 };
 
-export interface LanguageMessagesManifest {
+export interface LanguageProviderManifest {
     messages: MessagesMap;
 }
 
-export default class LanguageMessages extends ExtensionModuleFactory<LanguageMessagesManifest>() {
+export default class LanguageProvider extends ExtensionModuleFactory<LanguageProviderManifest>() {
     map: MessagesMap;
 
-    static __extensionModuleConfig: ExtensionModuleConfig = {
+    static extensionModuleConfig: ExtensionModuleConfig = {
         manifestRequired: true
     }
 }

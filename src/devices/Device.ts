@@ -3,19 +3,18 @@ import DeviceDriver from './DeviceDriver';
 import ExtensionController from '../extensions/ExtensionController';
 import ModelWithProps from '../lib/ModelWithProps';
 import WebSocket from '../lib/WebSocket';
+import type { DeviceDriverManifestInputType } from './DeviceDriver.types';
 import DeviceController from './DeviceController';
-import Manifest from '../utils/Manifest';
 import RecordManager from '../records/RecordManager';
 import _ from 'lodash';
-import type { DeviceDriverManifest } from './DeviceDriver.types';
-import type { DeviceProps, DevicePropsSerialized, } from './Device.types';
+import type { DeviceProps, DevicePropsSerialized, DeviceInputMetadata } from './Device.types';
 import type { ModelWithPropsConfig } from '../lib/ModelWithProps';
-import { Constructor } from '~types/helpers';
 
 export default class Device extends ModelWithProps<DeviceProps, DevicePropsSerialized> {
-    _getConfig(): ModelWithPropsConfig<DeviceProps, DevicePropsSerialized> {
+    __modelConfig(): ModelWithPropsConfig<DeviceProps, DevicePropsSerialized> {
         return {
             controller: DeviceController,
+
             filterProps: {
                 name: false
             },
@@ -27,10 +26,10 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
                     }
                 },
                 state: () => {
-                    if(this.driver) {
+                    if (this.driver) {
                         return this.driver.getState().toJSON();
                     }
-                    
+
                     return {
                         isActive: false,
                         display: {}
@@ -59,24 +58,19 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
                 metadata: {}
             }
         }
-    }
+    };
 
-    private _driver: DeviceDriver;
+    private _driver?: DeviceDriver;
     get driver() {
         return this._driver;
     }
 
-    private _driverManifest: Manifest<DeviceDriverManifest>;
-    get driverManifest() {
-        return this._driverManifest;
-    }
-
-    private _connection: DeviceConnector | null = null;
+    private _connection?: DeviceConnector;
     get connection() {
-        if(!this._connection) {
+        if (!this._connection) {
             throw new Error(`${this} has no connection.`);
         }
-        
+
         return this._connection;
     }
 
@@ -85,47 +79,63 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
         return this._records;
     }
 
-    init() {
+    protected init() {
         try {
-            [ this._driver, this._driverManifest ] = this.createDriver();
+            this.initDriver();
 
-            this.initRecordManager();
-            this.initConnector();
+            if (this._driver) {
+                this.initRecordManager();
+                this.initConnector();
+            }
         } catch (err: any) {
-            this.logger.error(err);
+            this.logger.error('Initialization error: ', { err });
         }
     }
 
-    canHandleInput(): boolean {
-        return !!(this._driver && this._driverManifest && this._connection);
+    isReady() {
+        return this.getErrors().length === 0;
     }
 
-    async handleInput(name: string, value: any): Promise<void> {
+    getErrors(): Error[] {
+        let codes = [];
+        
+        if(!(this._driver instanceof DeviceDriver)) {
+            codes.push('DRIVER_NOT_INITIALIZED');
+        } else if(!(this._connection instanceof DeviceConnector)) {
+            codes.push('CONNECTION_NOT_INITIALIZED');
+        } else if(this._connection?.isOpen !== true) {
+            codes.push('CONNECTION_NOT_OPEN');
+        }
+
+        return codes.map(code => new Error(code));
+    }
+
+    supportsInputOfType(type: DeviceDriverManifestInputType) {
+        return this.driver && this.driver.getInputs().filter(i => i.type === type).length > 0;
+    }
+
+    getInput(name: string): DeviceInputMetadata {
+        return this.getMetadata(`__INPUTS__.${name}`) ?? { value: null };
+    }
+
+    async performInput(name: string, value: any): Promise<void> {
         return new Promise(async (resolve, reject) => {
             try {
-                if (!this._driver || !this._driverManifest) {
-                    return reject('No driver initialized.');
+                const errors = this.getErrors();
+                if(errors.length > 0) {
+                    return reject(errors[0].message);
                 }
-
-                if (!this._connection) {
-                    return reject('No connection initialized.');
-                }
-
-                if(!this.canHandleInput()) {
-                    return reject('Cannot handle input.');
-                }
-
-                if (!this._driverManifest.get('inputs')?.some?.((i: any) => i.name === name)) {
-                    return reject(`${this._driver} does not have an input named '${name}'.`);
-                }
-
-                if (!this._connection?.isOpen) {
-                    return reject('Cannot handle input because the connection is closed.');
+                
+                if (!this._driver!.manifest.getArr('inputs').some(i => i.name === name)) {
+                    return reject(new Error('INPUT_NOT_FOUND'));
                 }
 
                 this.logger.debug(`Changing value of input '${name}'.`, { meta: { value } });
-                this._driver.handleInput(name, value, (err) => {
+                this._driver!.handleInput(name, value, (err) => {
                     if (err) throw err;
+
+                    this.setMetadata(`__INPUTS__.${name}`, { value });
+                    this.emit('input', { name, value });
 
                     this.emitClientUpdate();
                     resolve();
@@ -150,7 +160,7 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
      * @param keypath - The keypath of the metadata property to get.
      * @returns The value of the metadata property.
      */
-    getMetadata(keypath: string) {
+    getMetadata(keypath: string): any {
         return _.get(this.getProp('metadata'), keypath);
     }
 
@@ -166,26 +176,22 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
     /**
      * Initialize the driver.
      */
-    protected createDriver(): [ DeviceDriver, Manifest<DeviceDriverManifest> ] {
+    protected initDriver(): void {
         const driverConfig = this.getProp('driver');
 
-        let DriverModule: Constructor<DeviceDriver> = DeviceDriver;
-        if (typeof driverConfig?.type == 'string') {
-            DriverModule = ExtensionController.findModule(DeviceDriver, driverConfig.type);
-        } else {
+        if (typeof driverConfig.type !== 'string') {
             this.logger.notice('No driver configured.');
+            return;
         }
 
-        const driver = new DriverModule(this);
-        const manifest = new Manifest(driver.getManifest());
+        const DriverModule = ExtensionController.findModule(DeviceDriver, driverConfig.type);
+        this._driver = new DriverModule(this);
 
-        if (this.getOption('recording.enabled') && manifest.get('recording.supported') !== true) {
+        if (this.getOption('recording.enabled') && this._driver!.manifest.get('recording.supported') !== true) {
             this.logger.warn(
-                `Option 'recording.enabled' is set to true, but ${driver} does not support recording.`,
+                `Option 'recording.enabled' is set to true, but ${this._driver} does not support recording.`,
             );
         }
-
-        return [ driver, manifest ];
     }
 
     protected initRecordManager(): void {
@@ -224,13 +230,12 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
 
         connection.on('destroy', () => {
             this.logger.debug('Connection destroyed.');
-            this._connection = null;
+            this._connection = undefined;
             this.emitClientUpdate();
 
             this.emit('connection:destroy');
         });
 
-        // Add listeners
         connection.on('open', () => {
             this.logger.debug('Connection open.');
             this.emitClientUpdate();
@@ -238,7 +243,14 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
             this.emit('connection:open');
         });
 
-        connection.connect();
+        try {
+            const result = connection.connect();
+            if(result instanceof Promise) {
+                result.catch(err => this.logger.error('Error connecting:', { err }));
+            }
+        } catch(err: any) {
+            this.logger.error('Error connecting:', { err })
+        }
 
         return true;
 

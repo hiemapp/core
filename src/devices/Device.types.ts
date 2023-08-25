@@ -33,3 +33,7 @@ export interface DevicePropsSerialized extends DeviceProps {
         display: DeviceStateDisplay
     }
 }
+
+export interface DeviceInputMetadata {
+    value: any
+}

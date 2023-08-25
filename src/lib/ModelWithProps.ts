@@ -1,7 +1,6 @@
 import Model, { ModelConfig } from '../lib/Model';
-import { logger } from './Logger';
 import { PromiseAllObject } from '../utils/Promise';
-import _ from 'lodash';
+import _, { split } from 'lodash';
 
 export interface ModelWithPropsConfig<
     TProps, TPropsSerialized
@@ -20,48 +19,42 @@ abstract class ModelWithProps<
     TProps extends { id: number | string } = { id: number }, 
     TPropsSerialized extends TProps = TProps
 > extends Model<TProps['id']> {
-    abstract _getConfig(): ModelWithPropsConfig<TProps, TPropsSerialized>;
-
-    readonly _cnf: ModelWithPropsConfig<TProps, TPropsSerialized>;
-    private _props: TProps = {} as TProps;
+    protected __modelProps: TProps = {} as TProps;
+    protected abstract __modelConfig(): ModelWithPropsConfig<TProps, TPropsSerialized>;
 
     constructor(id: TProps['id'], props: Omit<TProps, 'id'>) {
         super(id);
-        this._cnf = this._getConfig();
-        this._props = _.defaultsDeep(props, this._cnf.defaults);
+        const config = this.__modelConfig();
 
+        this.__modelProps = _.defaultsDeep(props, config.defaults);
+        
         this.init();
     }
 
-    protected init() {}
+    protected init(): void {};
 
     /**
      * Get all properties of the model.
      * @returns A copy of the properties of the model.
      */
-    getProps(filter = false): Partial<TProps> {
-        const propsClone = {...this._props, id: this._id};
-        const omitKeypaths: string[] = [];
+    getProps(): TProps {
+        return {...this.__modelProps, id: this.__modelId } as TProps;
+    }
 
-        if(filter && this._cnf.filterProps) {
-            _.forOwn(this._cnf.filterProps, (handler, keypath) => {
-                let exclude: boolean = !!handler;
+    async getAllProps() {
+        const props = this.getProps();
+        const config = this.__modelConfig();
 
-                if(typeof handler === 'function') {
-                    exclude = !!handler();
-                }
-
-                if(exclude) {
-                    omitKeypaths.push(keypath);
-                }
-            })
+        if (!config.dynamicProps) {
+            return props;
         }
-
-        if (omitKeypaths.length) {
-            return _.omit(propsClone, omitKeypaths) as Partial<TProps>;
-        }
-
-        return propsClone as TProps;
+    
+        const dynamicProps = await PromiseAllObject(_.mapValues(config.dynamicProps, (handler, key) => {
+            if(typeof handler !== 'function') return true;
+            return handler();
+        }));
+        
+        return { ...props, ...dynamicProps };
     }
 
     /**
@@ -74,6 +67,20 @@ abstract class ModelWithProps<
         return _.get(this.getProps(), keypath);
     }
 
+    async getDynamicProp<TKey extends keyof TPropsSerialized>(keypath: TKey): Promise<TPropsSerialized[TKey]>;
+    async getDynamicProp(keypath: string): Promise<any>;
+    async getDynamicProp(keypath: string) {
+        const splitKeypath = keypath.split('.');
+        const key = splitKeypath[0] as keyof TPropsSerialized;
+        const rest = splitKeypath.slice(1).join('.');
+
+        const handler = this.__modelConfig().dynamicProps?.[key];
+        if(typeof handler !== 'function') return null;
+
+        const value = await handler();
+        return _.get(value, rest);
+    }
+
     /**
      * Set a specific property by keypath.
      * @param keypath The keypath of the property to set.
@@ -83,10 +90,10 @@ abstract class ModelWithProps<
     setProp(keypath: string, value: any): this;
     setProp(keypath: string, value: any) {
         // Mutate model properties
-        _.set(this._props, keypath, value);
+        _.set(this.__modelProps, keypath, value);
 
         // Update the controller
-        const controller = this._cnf.controller;
+        const controller = this.__modelConfig().controller;
         if (this.getId() && typeof controller.update === 'function') {
             controller.update(this.getId(), this);
         }
@@ -94,31 +101,12 @@ abstract class ModelWithProps<
         return this;
     }
 
-    addDynamicPropsSync(props: Partial<TProps>): Partial<TPropsSerialized> {
-        const anyProps = props as any;
-
-        if (this._cnf.dynamicProps) {
-            _.forOwn(this._cnf.dynamicProps, (handler, key) => {
-                if(typeof handler !== 'function') return true;
-                anyProps[key] = handler();
-            })
-        }
-
-        return anyProps as Partial<TPropsSerialized>;
-    }
-
-    async addDynamicProps(props: Partial<TProps>): Promise<Partial<TPropsSerialized>> {
-        const dynamicPropsSync = this.addDynamicPropsSync(props);
-        return await PromiseAllObject(dynamicPropsSync);
-    }
-
-
     toJSON() {
-        return this.addDynamicPropsSync(this.getProps(false));
+        return this.getProps();
     }
 
     async serialize() {
-        return await this.addDynamicProps(this.getProps(false));
+        return await this.getAllProps();
     }
 }
 

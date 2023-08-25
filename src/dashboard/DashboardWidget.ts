@@ -1,4 +1,4 @@
-import ExtensionModule from '~/extensions/ExtensionModule';
+import { ExtensionModuleFactory } from '~/extensions/ExtensionModule';
 import icons from '~/utils/icons';
 import { WebSocket } from '~/lib';
 import { colors } from '~/utils/style/colors';
@@ -6,10 +6,14 @@ import type { HTMLElementListener } from '~/ui/types';
 import type { DashboardWidgetManifest } from './DashboardWidgetManifest.types';
 import type { DashboardWidgetContent } from './DashboardWidgetContent.types';
 
-export default class DashboardWidget<TState extends Record<string, any> = {}> extends ExtensionModule {
+export default class DashboardWidget<TState extends Record<string, any> = {}> extends ExtensionModuleFactory<DashboardWidgetManifest>() {
     #state: TState = {} as TState;
     #callbacks: Record<string, () => unknown> = {};
     sessionId: string;
+
+    make(ctx: {}) {
+        return;
+    }
 
     constructor(sessionId: string) {
         super();

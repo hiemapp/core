@@ -1,17 +1,22 @@
-import ExtensionModule from '../extensions/ExtensionModule';
 import Device from './Device';
 import type { DeviceProps } from './Device.types';
+import { ExtensionModuleFactory } from '~/extensions/ExtensionModule';
+import Manifest from '~/utils/Manifest';
 
-export default class DeviceConnector extends ExtensionModule {
+export default class DeviceConnector<TSettings extends {} = {}> extends ExtensionModuleFactory<any>() {
     protected idOptionKey = 'id';
     protected config: DeviceProps['connector'];
-    protected receivedData: any[] = [];
     protected device: Device;
-
     private _emittedCreateEvent: boolean = false;
+
     private _isOpen: boolean = false;
     get isOpen() {
         return this._isOpen;
+    }
+
+    private _settings: Manifest<TSettings>;
+    get settings() {
+        return this._settings;
     }
 
     constructor(device: Device, config: DeviceProps['connector']) {
@@ -24,7 +29,7 @@ export default class DeviceConnector extends ExtensionModule {
     /**
      * Initialize a connection.
      */
-    connect(): void {
+    connect(): void | Promise<void> {
         throw new Error('Method connect() is not implemented.');
     }
 
@@ -32,8 +37,19 @@ export default class DeviceConnector extends ExtensionModule {
      * Write data to the connection.
      * @param data - The data to write.
      */
-    write(data: any) {
+    write(data: unknown) {
         throw new Error('Method write() is not implemented.');
+    }
+
+    isReady(action?: 'WRITE' | 'READ'): boolean {
+        switch(action) {
+            case 'WRITE':
+                return this._isOpen;
+            case 'READ':
+                return this._isOpen;
+            default:
+                return this.isReady('WRITE') && this.isReady('READ');
+        }
     }
 
     /**
@@ -44,27 +60,16 @@ export default class DeviceConnector extends ExtensionModule {
         throw new Error('Method file() is not implemented.');
     }
 
-    setSetting(name: string, value: any) {
-        throw new Error('Method setSetting() is not implemented.');
+    defineDefaultSettings(defaultSettings: TSettings) {
+        this._settings = new Manifest(defaultSettings);
     }
 
     /**
-     * Read data that was received last.
-     * @returns The data that was received.
+     * Should be called when data is received.
+     * @param data - The data that was received.
      */
-    read(): any[] {
-        const data = Object.assign({}, this.receivedData);
-        this.receivedData = [];
-        return data;
-    }
-
-    /**
-     * Should be called when a message is received.
-     * @param message - The message that was received.
-     */
-    handleData(message: any) {
-        super.emit('data', message);
-        this.receivedData.push(message);
+    handleData(data: any) {
+        super.emit('data', data);
     }
 
     /**

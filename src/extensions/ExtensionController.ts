@@ -4,10 +4,9 @@ import * as path from 'path';
 import * as _ from 'lodash';
 import { getDir } from '~/utils/paths';
 import Extension from '../extensions/Extension';
-import ExtensionModule from './ExtensionModule';
 import ExtensionNotInstalledError from '../errors/ExtensionNotInstalledError';
-import { Constructor } from '~types/helpers';
 import Manifest from '../utils/Manifest';
+import { type ExtensionModuleClass } from './ExtensionModule';
 
 export default class ExtensionController extends Controller<Extension>() {
     /**
@@ -41,7 +40,7 @@ export default class ExtensionController extends Controller<Extension>() {
             return resolve();
         });
     }
-
+    
     /**
      * Find an extension by name.
      * @param name - The name of the extension to find.
@@ -54,13 +53,13 @@ export default class ExtensionController extends Controller<Extension>() {
         throw new ExtensionNotInstalledError(name);
     }
 
-    static findAllModulesOfType<T extends Constructor<ExtensionModule>>(typeClass: T) {
+    static findAllModulesOfType<T extends ExtensionModuleClass>(typeClass: T) {
         let foundModules: Record<string, T> = {};
 
-        this.index().forEach((extension) => {
+        this.index().forEach(extension => {
             if (!extension.modules || !extension.modules[typeClass.name]) return true;
 
-            Object.entries(extension.modules[typeClass.name]).forEach(([name, module]) => {
+            _.forOwn(extension.modules[typeClass.name], (module, name) => {
                 const moduleSlug = `${extension.getId()}.${name}`;
                 foundModules[moduleSlug] = module;
             });
@@ -69,13 +68,13 @@ export default class ExtensionController extends Controller<Extension>() {
         return foundModules;
     }
 
-    static findModule<T extends Constructor<ExtensionModule>>(moduleType: T, moduleSlug: string) {
+    static findModule<T extends ExtensionModuleClass>(moduleType: T, moduleSlug: string) {
         const [ extensionId, moduleName ] = Extension.parseModuleSlug(moduleSlug);
         const ext = this.find(extensionId);
         return ext.getModule(moduleType, moduleName);
     }
 
-    static findModuleOrFail<T extends Constructor<ExtensionModule>>(moduleType: T, moduleSlug: string) {
+    static findModuleOrFail<T extends ExtensionModuleClass>(moduleType: T, moduleSlug: string) {
         const [ extensionId, moduleName ] = Extension.parseModuleSlug(moduleSlug);
         const ext = this.find(extensionId);
         return ext.getModuleOrFail(moduleType, moduleName);

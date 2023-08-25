@@ -1,7 +1,7 @@
 import Extension from '../extensions/Extension';
 import ExtensionController from '../extensions/ExtensionController';
 import Controller from '../lib/Controller';
-import LanguageMessages, { LanguageKey } from './LanguageMessages';
+import LanguageProvider, { LanguageKey } from './LanguageProvider';
 import Language from './Language';
 import * as _ from 'lodash';
 import Locale from './Language';
@@ -16,10 +16,10 @@ export default class LanguageController extends Controller<Language>() {
             const language = new Language(key);
 
             ExtensionController.index().forEach((extension: Extension) => {
-                const messages = extension.getModuleOrFail(LanguageMessages, key);
-                if (!messages) return true;
+                const provider = extension.getModuleOrFail(LanguageProvider, key);
+                if (!provider) return true;
 
-                language.addMessages(messages.map, extension.getId());
+                language.addMessages(provider.manifest.get('messages'), extension.getId());
             });
 
             languages[key] = language;

@@ -1,4 +1,3 @@
-import { uuid } from '~/utils';
 import { ExtensionController } from '..';
 import DashboardWidget from './DashboardWidget';
 
@@ -24,12 +23,13 @@ export default class DashboardWidgetManager {
             return null;
         }
 
-        // Create a new widget instance
-        const widget = new widgetType(sessionId);
-        this.sessions[sessionId] = widget;
-        widget.onMount();
+        // // Create a new widget instance
+        // const widget = widgetType.make({ sessionId });
+        // this.sessions[sessionId] = widget;
+        // widget.onMount();
 
-        return widget;
+        // return widget;
+        return null;
     }
 
     static getOrCreateWidget(slug: string, sessionId: string): DashboardWidget | null {

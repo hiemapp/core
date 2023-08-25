@@ -1,18 +1,18 @@
 import type { FlowScriptBlockStatement } from '~/flows/Flow.types';
-import type { FlowBlockManifestStatement } from '~/flows/FlowBlockManifest.types'
+import type { FlowBlockLayoutStatement } from '~/flows/FlowBlockLayout.types'
 import type FlowBlockContext from './FlowBlockContext';
 import FlowBlockInputContext from './FlowBlockInputContext';
 import { ensureFind } from '~/utils/object';
 
 export default class FlowBlockStatementContext extends FlowBlockInputContext {
     protected def: FlowScriptBlockStatement;
-    protected manifest: FlowBlockManifestStatement;
+    protected layout: FlowBlockLayoutStatement;
     protected pointerIndex: number = 0;
     protected isExecutionStopped: boolean = false;
 
-    init() {
-        this.def = ensureFind(this.blockDef.statements!, s => s.id === this.id);
-        this.manifest = ensureFind(this.blockManifest.statements!, s => s.id === this.id);
+    protected init() {
+        this.def = ensureFind(this.blockCtx.def.statements!, s => s.id === this.id);
+        this.layout = ensureFind(this.blockCtx.layout.getArr('statements'), s => s.id === this.id);
     }
 
     async execute(pointerIndex: number = 0) {
@@ -40,7 +40,7 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext {
     }
 
     blocks(): FlowBlockContext[] {
-        return this.def.children.map(id => this.block.root().findBlock(id))
+        return this.def.children.map(id => this.blockCtx.root().findBlock(id))
     }
 
     stopExecution(isExecutionStopped: boolean = true) {
@@ -65,7 +65,7 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext {
     }
 
     protected findDef() {
-        const def = this.blockDef.statements.find(s => s.id === this.id);
+        const def = this.blockCtx.def.statements.find(s => s.id === this.id);
         if(!def) {
             throw new Error(`Definition for statement '${this.id}' not found.`);
         }

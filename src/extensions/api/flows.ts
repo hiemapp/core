@@ -2,3 +2,4 @@ export { type FlowBlockContext, FlowBlock, FlowBlockCategory, FlowController } f
 export type { FlowBlockCategoryManifest } from '~/flows/FlowBlockCategory.types';
 export type { FlowBlockManifest } from '~/flows/FlowBlockManifest.types';
 export type { FlowBlockTask } from '~/flows/FlowBlockTask.types'
+export type { FlowBlockLayout } from '~/flows/FlowBlockLayout.types';

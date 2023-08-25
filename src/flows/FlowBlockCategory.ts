@@ -1,8 +1,8 @@
-import ExtensionModule from '../extensions/ExtensionModule';
+import { ExtensionModuleConfig, ExtensionModuleFactory } from '../extensions/ExtensionModule';
 import type { FlowBlockCategoryManifest } from './FlowBlockCategory.types';
 
-export default class FlowBlockCategory extends ExtensionModule {
-    getManifest(): FlowBlockCategoryManifest {
-        return {};
+export default class FlowBlockCategory extends ExtensionModuleFactory<FlowBlockCategoryManifest>() {
+    static extensionModuleConfig: ExtensionModuleConfig = {
+        manifestRequired: true
     }
 }

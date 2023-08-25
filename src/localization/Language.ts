@@ -1,6 +1,6 @@
 import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
 import LanguageController from './LanguageController';
-import { LanguageKey, MessagesMap } from './LanguageMessages';
+import { LanguageKey, MessagesMap } from './LanguageProvider';
 import _ from 'lodash';
 
 export interface LanguageProps {
@@ -13,7 +13,7 @@ export interface LanguagePropsSerialized extends LanguageProps {
 }
 
 export default class Language extends ModelWithProps<LanguageProps, LanguagePropsSerialized> {
-    _getConfig(): ModelWithPropsConfig<LanguageProps, LanguagePropsSerialized> {
+    __modelConfig(): ModelWithPropsConfig<LanguageProps, LanguagePropsSerialized> {
         return {
             controller: LanguageController,
             defaults: {
@@ -28,15 +28,18 @@ export default class Language extends ModelWithProps<LanguageProps, LanguageProp
         });
     }
 
-    addMessages(messages: MessagesMap, prefix: string): void {
-        let prefixedMessages: Record<string, any> = {};
+    addMessages(messages: MessagesMap, scope: string): void {
+        let scopedMessages: Record<string, any> = {};
 
         _.forOwn(messages, (message, id) => {
-            // Id's that start with 'global.' shouldn't be prefixed
-            const prefixedId = prefix && !id.startsWith('global.') ? `${prefix}.${id}` : id;
-            prefixedMessages[prefixedId] = message;
+            // If the id does not have an '@global' prefix, limit it to the `scope`.
+            if (!id.startsWith('@global')) {
+                id = `${scope}.${id}`;
+            }
+
+            scopedMessages[id] = message;
         });
 
-        this.setProp('messages', Object.assign({}, this.getProp('messages'), prefixedMessages));
+        this.setProp('messages', Object.assign({}, this.getProp('messages'), scopedMessages));
     }
 }

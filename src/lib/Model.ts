@@ -7,18 +7,21 @@ export interface ModelConfig {
 }
 
 abstract class Model<TId extends string | number> extends EventEmitter {
-    protected _id: TId;
-    protected _cnf: ModelConfig;
+    protected __modelId: TId;
+    protected __modelConfig(): ModelConfig { return {}; };
+
     logger: Logger;
 
     constructor(id: TId) {
         super();
-        this._id = id;
+
+        this.__modelId = id;
         this.logger = logger.child({ label: this.toString() });
 
-        if (this._cnf) {
-            if (typeof this._cnf.maxListeners === 'number') {
-                this.setMaxListeners(this._cnf.maxListeners);
+        const config = this.__modelConfig();
+        if (config) {
+            if (typeof config.maxListeners === 'number') {
+                this.setMaxListeners(config.maxListeners);
             }
         }
     }
@@ -41,7 +44,7 @@ abstract class Model<TId extends string | number> extends EventEmitter {
     }
 
     getId() {
-        return this._id;
+        return this.__modelId;
     }
 }
 

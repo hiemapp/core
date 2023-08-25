@@ -1,3 +1,4 @@
+import type Device from './Device';
 import type { 
     DeviceStateDisplay, 
     DeviceStateDisplayButton, 
@@ -6,13 +7,12 @@ import type {
 } from './DeviceState.types';
 
 export default class DeviceState {
-    _isActive: boolean;
-    _display: DeviceStateDisplay = {};
+    protected _isActive: boolean;
+    protected _display: DeviceStateDisplay = {};
 
     get isActive() {
         return this._isActive;
     }
-
     /**
      * Set the active state.
      * @param isActive - Whether the device state should be active.

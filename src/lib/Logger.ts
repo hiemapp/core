@@ -43,11 +43,13 @@ export default class Logger {
 
         // MESSAGE
         if(data instanceof Error) {           
-            // Only log the error message
             message = data.message;
+        } else if(options.err instanceof Error) {
+            message = `${_.trimEnd(data, ': ')}: ${options.err.message}`;
         } else {
             message = data;
         }
+
 
         // TIME
         const time = this.getTimeString();
@@ -74,10 +76,10 @@ export default class Logger {
 
         // Log error stack
         if(process.env.NODE_ENV === 'development') {
-            if(data instanceof Error && data.stack && process.env.NODE_ENV === 'development') {
-                console.error(data.stack);
+            if(data instanceof Error && data.stack) {
+                console.error(data.stack.slice(7 + data.message.length + 1));
             } else if(options.err instanceof Error && options.err.stack) {
-                console.error(options.err.stack);
+                console.error(options.err.stack.slice(7 + options.err.message.length + 1));
             }
         }
     }
