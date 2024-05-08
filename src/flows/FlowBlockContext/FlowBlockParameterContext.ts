@@ -20,11 +20,13 @@ export default class FlowBlockParameterContext extends FlowBlockInputContext {
             }
 
             if(typeof this.def.value.block === 'string') {
-                const block = this.blockCtx.root().findBlock(this.def.value.block);
+                const block = this.blockCtx.flowCtx.findBlock(this.def.value.block);
 
                 const value = await block.execute();
                 return resolve(value);
-            } 
+            }
+
+            return resolve(null);
         })
     }
 

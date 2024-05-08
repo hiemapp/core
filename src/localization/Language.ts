@@ -2,18 +2,10 @@ import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
 import LanguageController from './LanguageController';
 import { LanguageKey, MessagesMap } from './LanguageProvider';
 import _ from 'lodash';
+import { LanguageType } from './Language.types';
 
-export interface LanguageProps {
-    id: LanguageKey,
-    messages: MessagesMap;
-}
-
-export interface LanguagePropsSerialized extends LanguageProps {
-    messages: Record<string, string>
-}
-
-export default class Language extends ModelWithProps<LanguageProps, LanguagePropsSerialized> {
-    __modelConfig(): ModelWithPropsConfig<LanguageProps, LanguagePropsSerialized> {
+export default class Language extends ModelWithProps<LanguageType> {
+    __modelConfig(): ModelWithPropsConfig<LanguageType> {
         return {
             controller: LanguageController,
             defaults: {

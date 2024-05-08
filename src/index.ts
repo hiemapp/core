@@ -5,13 +5,16 @@ export * from './localization/index';
 export * from './records/index';
 export * from './users/index';
 export * from './dashboard/index';
+export * from './scripts/index';
 export * as utils from './utils/index';
 export * as jsx from './ui/types';
 
 export * as api from './extensions/api';
+export * from './scripts/index';
 export { default as Config } from './lib/Config';
 export { logger } from './lib/Logger';
 export { default as Database } from './lib/Database';
 export { default as WebSocket } from './lib/WebSocket';
 export { default as Taskrunner } from './lib/Taskrunner';
+export { default as TaskManager } from './lib/TaskManager';
 export { default as ModelWithProps } from './lib/ModelWithProps';

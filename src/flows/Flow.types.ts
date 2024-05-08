@@ -1,13 +1,24 @@
+import { ModelWithPropsType } from '~/lib/ModelWithProps';
+
+export interface FlowType extends ModelWithPropsType {
+    id: number,
+    props: FlowProps,
+    serializedProps: FlowProps,
+    events: {}
+}
+
 export interface FlowProps {
     id: number;
     name: string;
     icon: string;
     blocklyWorkspace: FlowBlocklyWorkspace;
 }
+
 export interface FlowBlocklyWorkspace {
     languageVersion: number;
     blocks: FlowBlocklyWorkspaceBlock[];
 }
+
 export interface FlowBlocklyWorkspaceBlock {
     type: string;
     id: string;

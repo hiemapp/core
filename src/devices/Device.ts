@@ -7,14 +7,13 @@ import type { DeviceDriverManifestInputType } from './DeviceDriver.types';
 import DeviceController from './DeviceController';
 import RecordManager from '../records/RecordManager';
 import _ from 'lodash';
-import type { DeviceProps, DevicePropsSerialized, DeviceInputMetadata } from './Device.types';
+import type {  DeviceType } from './Device.types';
 import type { ModelWithPropsConfig } from '../lib/ModelWithProps';
 
-export default class Device extends ModelWithProps<DeviceProps, DevicePropsSerialized> {
-    __modelConfig(): ModelWithPropsConfig<DeviceProps, DevicePropsSerialized> {
+export default class Device extends ModelWithProps<DeviceType> {
+    __modelConfig(): ModelWithPropsConfig<DeviceType> {
         return {
             controller: DeviceController,
-
             filterProps: {
                 name: false
             },
@@ -27,7 +26,10 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
                 },
                 state: () => {
                     if (this.driver) {
-                        return this.driver.getState().toJSON();
+                        const state = this.driver.getState();
+                        if(state && typeof state.toJSON === 'function') {
+                            return state.toJSON();
+                        }
                     }
 
                     return {
@@ -37,8 +39,8 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
                 }
             },
             defaults: {
-                name: 'test',
-                icon: 'test',
+                name: 'N/A',
+                icon: 'circle-question',
                 color: 'red',
                 driver: {
                     type: null,
@@ -67,10 +69,6 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
 
     private _connection?: DeviceConnector;
     get connection() {
-        if (!this._connection) {
-            throw new Error(`${this} has no connection.`);
-        }
-
         return this._connection;
     }
 
@@ -88,7 +86,7 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
                 this.initConnector();
             }
         } catch (err: any) {
-            this.logger.error('Initialization error: ', { err });
+            this.logger.error('Initialization error: ', err);
         }
     }
 
@@ -114,7 +112,7 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
         return this.driver && this.driver.getInputs().filter(i => i.type === type).length > 0;
     }
 
-    getInput(name: string): DeviceInputMetadata {
+    getInput(name: string) {
         return this.getMetadata(`__INPUTS__.${name}`) ?? { value: null };
     }
 
@@ -123,24 +121,32 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
             try {
                 const errors = this.getErrors();
                 if(errors.length > 0) {
-                    return reject(errors[0].message);
+                    throw errors[0];
                 }
                 
                 if (!this._driver!.manifest.getArr('inputs').some(i => i.name === name)) {
-                    return reject(new Error('INPUT_NOT_FOUND'));
+                    throw new Error('INPUT_NOT_FOUND');
                 }
 
-                this.logger.debug(`Changing value of input '${name}'.`, { meta: { value } });
+                this.logger.debug(`Setting input '${name}' to ${value}.`);
+
+                const inputEvent = this.createEvent('driver:input', { input: { name, value }});
+                await inputEvent.emit();
+
+                if(inputEvent.isCanceled) {
+                    this.logger.debug('The input event was canceled.');
+                    return resolve();
+                }
+
                 this._driver!.handleInput(name, value, (err) => {
                     if (err) throw err;
-
+                    
                     this.setMetadata(`__INPUTS__.${name}`, { value });
-                    this.emit('input', { name, value });
+                    this.emit('update', {});
 
-                    this.emitClientUpdate();
                     resolve();
                 });
-            } catch (err) {
+            } catch (err: any) {
                 return reject(err);
             }
         });
@@ -208,48 +214,47 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
 
         let connConfig = this.getProp('connector');
 
-        // Invoke the driver's modifyConnectionConfig() to edit the connection config.
+        // Invoke the driver's modifyConnectionConfig() method to edit the connection config.
         this.logger.debug('Calling device driver to edit the connection configuration.');
         const editedConnConfig = this._driver.modifyConnectorConfig(connConfig);
 
-        if (typeof editedConnConfig?.type != 'string') {
+        if(editedConnConfig.type === 'string') {
+            connConfig = editedConnConfig;
+        }
+
+        if (typeof connConfig?.type != 'string') {
             this.logger.notice('No connector configured.');
             return false;
         }
 
-        const ConnectionModule = ExtensionController.findModule(DeviceConnector, editedConnConfig.type);
-        const connection = new ConnectionModule(this, editedConnConfig);
+        const ConnectionModule = ExtensionController.findModule(DeviceConnector, connConfig.type);
+        const connection = new ConnectionModule(this, connConfig);
 
-        connection.on('create', () => {
-            this.logger.debug('Connection created.');
-            this._connection = connection;
-            this.emitClientUpdate();
-
-            this.emit('connection:create');
-        });
-
-        connection.on('destroy', () => {
-            this.logger.debug('Connection destroyed.');
+        connection.on('close', () => {
+            this.logger.debug('Connection closed.');
             this._connection = undefined;
-            this.emitClientUpdate();
 
-            this.emit('connection:destroy');
+            this.emit('connection:close', {});
+            this.emit('update', {});
         });
 
         connection.on('open', () => {
             this.logger.debug('Connection open.');
-            this.emitClientUpdate();
+            this._connection = connection;
 
-            this.emit('connection:open');
+            this.emit('connection:open', {});
+            this.emit('update', {});
         });
 
         try {
             const result = connection.connect();
+            this.logger.debug(`Awaiting 'open' event from connector...`);
+
             if(result instanceof Promise) {
-                result.catch(err => this.logger.error('Error connecting:', { err }));
+                result.catch(err => this.logger.error('Error connecting:', err));
             }
         } catch(err: any) {
-            this.logger.error('Error connecting:', { err })
+            this.logger.error('Error connecting:', err)
         }
 
         return true;
@@ -266,18 +271,5 @@ export default class Device extends ModelWithProps<DeviceProps, DevicePropsSeria
         // }).catch(err => {
         //     this.logger.error(err);
         // });
-    }
-
-    /**
-     * Sends an update to the web client.
-     */
-    emitClientUpdate() {
-        (async () => {
-            WebSocket.emit('devices:change', {
-                device: {
-                    id: this.getId()
-                }
-            });
-        })();
     }
 }

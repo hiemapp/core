@@ -5,7 +5,7 @@ import type { FlowBlockTask } from './FlowBlockTask.types';
 import type FlowBlockContext from './FlowBlockContext/FlowBlockContext';
 
 export default class FlowBlock extends ExtensionModuleFactory<FlowBlockManifest>(){
-    private static __layoutProvider: () => FlowBlockLayout;
+    private static __layoutProvider: () => FlowBlockLayout = () => { return {}; };
 
     static extensionModuleConfig: ExtensionModuleConfig = {
         manifestRequired: true
@@ -15,20 +15,24 @@ export default class FlowBlock extends ExtensionModuleFactory<FlowBlockManifest>
         this.__layoutProvider = layoutProvider;
     }
 
-    async run(block: FlowBlockContext): Promise<any> {
+    async run(ctx: FlowBlockContext): Promise<any> {
         return;
     }
 
-    async mount(block: FlowBlockContext): Promise<void> {
+    async mount(ctx: FlowBlockContext): Promise<void> {
         return;
     }
 
-    handleTask(task: FlowBlockTask, block: FlowBlockContext): void {
+    async unmount(ctx: FlowBlockContext): Promise<void> {
         return;
     }
 
-    static checkValidity(): void {
-        super.checkValidity();
+    handleTask(task: FlowBlockTask, ctx: FlowBlockContext): void {
+        return;
+    }
+
+    static validate(): void {
+        super.validate();
 
         if(!this.__layoutProvider) {
             throw new Error('No layoutProvider was defined.');

@@ -2,7 +2,7 @@ import { ExtensionModuleFactory, type ExtensionModuleConfig } from '../extension
 import DeviceState from './DeviceState';
 import Device from './Device';
 import type { DeviceDriverManifest } from './DeviceDriver.types';
-import type { DeviceProps } from './Device.types';
+import type { DeviceType } from './Device.types';
 
 export default class DeviceDriver extends ExtensionModuleFactory<DeviceDriverManifest>() {
     device: Device;
@@ -34,7 +34,7 @@ export default class DeviceDriver extends ExtensionModuleFactory<DeviceDriverMan
      * Create a DeviceState representing the current state of the device.
      * @returns The current state.
      */
-    getState(): DeviceState {
+    getState(): DeviceState | void {
         const state = new DeviceState();
 
         state.setIsActive(false);
@@ -47,7 +47,7 @@ export default class DeviceDriver extends ExtensionModuleFactory<DeviceDriverMan
      * @param current - The current connector config.
      * @returns The modified connector config.
      */
-    modifyConnectorConfig(current: DeviceProps['connector']): DeviceProps['connector'] {
+    modifyConnectorConfig(current: DeviceType['props']['connector']): DeviceType['props']['connector'] {
         return current;
     }
 

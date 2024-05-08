@@ -17,6 +17,7 @@
         "strictPropertyInitialization": false,
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
+        "skipLibCheck": true,
         "baseUrl": "./",
         "jsx": "react",
         "jsxFactory": "jsx.h",

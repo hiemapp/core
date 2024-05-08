@@ -16,6 +16,7 @@ export interface FlowBlockLayoutParameter {
         value?: any;
     };
     blockly?: any;
+    variable?: boolean;
 }
 export interface FlowBlockLayoutStatement {
     id: string;

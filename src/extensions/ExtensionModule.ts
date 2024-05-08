@@ -48,7 +48,7 @@ function ExtensionModuleFactory<TManifest extends {} = {}>() {
 
         public static init(): void { };
 
-        static checkValidity(): void {
+        static validate(): void {
             if (this.extensionModuleConfig.manifestRequired === true && !(this.manifest instanceof Manifest)) {
                 throw new Error('No manifest was defined.');
             }

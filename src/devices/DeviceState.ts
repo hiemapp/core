@@ -1,9 +1,9 @@
-import type Device from './Device';
 import type { 
-    DeviceStateDisplay, 
+    DeviceStateDisplay,
     DeviceStateDisplayButton, 
     DeviceStateDisplayTile, 
-    DeviceStateDisplayRecording 
+    DeviceStateDisplayRecording,
+    DeviceStateDisplayText
 } from './DeviceState.types';
 
 export default class DeviceState {
@@ -34,6 +34,11 @@ export default class DeviceState {
 
     addRecordingDisplay(display: DeviceStateDisplayRecording) {
         this._display.recording = display;
+        return this;
+    }
+
+    addTextDisplay(display: DeviceStateDisplayText) {
+        this._display.text = display;
         return this;
     }
 

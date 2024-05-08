@@ -5,20 +5,11 @@ import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
 import UserController from './UserController';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { getDir } from '~/utils/paths';
-import type Model from '~/lib/Model';
+import Model from '~/lib/Model';
+import type { UserType } from './User.types';
 
-export interface UserProps {
-    id: number;
-    name: string;
-    permissions: Record<string, boolean>;
-    settings: Record<string, any>,
-    password: string | null;
-}
-
-export interface SerializedUserProps extends UserProps { }
-
-export default class User extends ModelWithProps<UserProps, SerializedUserProps> {
-    __modelConfig(): ModelWithPropsConfig<UserProps, SerializedUserProps> {
+export default class User extends ModelWithProps<UserType> {
+    __modelConfig(): ModelWithPropsConfig<UserType> {
         return {
             controller: UserController,
             defaults: {
@@ -30,12 +21,21 @@ export default class User extends ModelWithProps<UserProps, SerializedUserProps>
         }
     }
 
-    hasPermission<TModel extends Model<any>>(model: TModel, action: 'view' | 'input') {
-        const key = `${model.constructor.name}.${model.getId()}.${action}`;
-        return this.hasPermissionKey(key);
-    }
+    hasPermission<TModel extends Model<any>>(model: TModel, action: 'view' | 'input'): boolean;
+    hasPermission(key: string): boolean;
+    hasPermission(...args: any[]) {
+        let key: string;
 
-    hasPermissionKey(key: string) {
+        if(typeof args[0] === 'string') {
+            key = args[0];
+        } else if(args[0] instanceof Model) {
+            const model = args[0];
+            const action = args[1];
+            key = `${model.constructor.name}.${model.getId()}.${action}`;
+        } else {
+            return false;
+        }
+
         const permissions = this.getProp('permissions');
 
         if (!permissions || !_.isPlainObject(permissions)) return false;

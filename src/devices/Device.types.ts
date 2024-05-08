@@ -1,9 +1,32 @@
+import { ModelWithPropsType } from '~/lib/ModelWithProps';
 import type { DeviceStateDisplay } from './DeviceState.types';
+import type { Icon } from '~/utils';
+import type { DriverInputEvent, UpdateEvent, ConnectionCloseEvent, ConnectionOpenEvent } from './events.types';
 
-export interface DeviceProps {
+export interface DeviceType extends ModelWithPropsType {
+    id: number,
+    props: DeviceProps,
+    serializedProps: DevicePropsSerialized,
+    events: {
+        'driver:input': {
+            data: DriverInputEvent
+        },
+        'update': {
+            data: UpdateEvent
+        },
+        'connection:close': {
+            data: ConnectionCloseEvent
+        },
+        'connection:open': {
+            data: ConnectionOpenEvent
+        }
+    }
+}
+
+interface DeviceProps {
     id: number;
     name: string;
-    icon: string;
+    icon: Icon;
     color: string;
     driver: {
         type: string | null;
@@ -23,7 +46,7 @@ export interface DeviceProps {
     metadata: Record<string, any>
 }
 
-export interface DevicePropsSerialized extends DeviceProps {
+interface DevicePropsSerialized extends DeviceProps {
     connection: {
         exists: boolean,
         isOpen: boolean
@@ -32,8 +55,4 @@ export interface DevicePropsSerialized extends DeviceProps {
         isActive: boolean,
         display: DeviceStateDisplay
     }
-}
-
-export interface DeviceInputMetadata {
-    value: any
 }

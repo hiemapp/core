@@ -40,7 +40,7 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext {
     }
 
     blocks(): FlowBlockContext[] {
-        return this.def.children.map(id => this.blockCtx.root().findBlock(id))
+        return this.def.children.map(id => this.blockCtx.flowCtx.findBlock(id))
     }
 
     stopExecution(isExecutionStopped: boolean = true) {

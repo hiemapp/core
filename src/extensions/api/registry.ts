@@ -36,14 +36,11 @@ export function registerModule<T extends ExtensionModuleClass>(
         
         if(typeof moduleClass.init === 'function') {
             moduleClass.init();
-
-            if(moduleClass.extensionModuleConfig.manifestRequired === true && !moduleClass.manifest) {
-                throw new Error('A manifest is required, but was not defined. Use this.defineManifest() in the static init() method to define it.');
-            }
+            moduleClass.validate();
         }
 
         extension.registerModule(name, moduleClass, typeClass);
     } catch(err: any) {
-        extension.logger.error(`Error registering ${typeClass ? `${typeClass.name} ` : ''}'${name}':`, { err });
+        extension.logger.error(`Error registering ${typeClass ? `${typeClass.name} ` : ''}'${name}':`, err);
     }
 }

@@ -1,7 +1,6 @@
 import type { Constructor } from '~types/helpers';
 import type { FlowScriptBlock, FlowBlockCustomTaskData, FlowTaskData  } from '~/flows/Flow.types';
 import type { FlowBlockManifest } from '~/flows/FlowBlockManifest.types'
-import { logger } from '../../lib';
 import FlowBlockStatementContext from './FlowBlockStatementContext';
 import FlowBlockParameterContext from './FlowBlockParameterContext';
 import FlowBlock from '../FlowBlock';
@@ -9,25 +8,45 @@ import ExtensionController from '~/extensions/ExtensionController';
 import FlowContext from '../FlowContext/FlowContext';
 import { PromiseAllObject } from '~/utils/Promise';
 import { ensureFind } from '~/utils/object';
-import Taskrunner from '~/lib/Taskrunner';
 import Manifest from '~/utils/Manifest';
 import { FlowBlockLayout } from '../FlowBlockLayout.types';
+import _ from 'lodash';
+import type Model from '~/lib/Model';
+import { ModelEventCallback } from '~/lib/ModelEvent';
+
+export type FlowblockContextHandlerName = 'CANCEL';
+export type FlowBlockContextFunctionCallback = () => unknown;
+type henk<T> = T extends Model<infer B> ? B : never;
 
 export interface FlowBlockContextTimedTaskEvent {
     keyword: string,
     ctx: FlowBlockContext
 }
 
+export interface FlowBlockContextListener { 
+    model: Model<any>, 
+    eventName: string, 
+    callback: ModelEventCallback 
+}
+
 export default class FlowBlockContext {
-    public def: FlowScriptBlock;
-    public manifest: Manifest<FlowBlockManifest>;
-    public layout: Manifest<FlowBlockLayout>;
+    public readonly def: FlowScriptBlock;
+    public readonly manifest: Manifest<FlowBlockManifest>;
+    public readonly layout: Manifest<FlowBlockLayout>;
+    public readonly flowCtx: FlowContext;
+
+    public isMounted: boolean = false;
 
     protected id: string;
-    protected type: typeof FlowBlock;
-    protected flowCtx: FlowContext;
+    protected handlers: Record<FlowblockContextHandlerName, FlowBlockContextFunctionCallback | undefined> = {} as any;
+    protected variables: Record<string, any> = {};
+    protected instance: FlowBlock;
+    protected listeners: FlowBlockContextListener[] = [];
     protected _parameters: Record<string, FlowBlockParameterContext> = {};
     protected _statements: Record<string, FlowBlockStatementContext> = {};
+
+    // protected _memo_rootBlock?: FlowBlockContext;
+    // protected _memo_getHandler: Record<FlowblockContextHandlerName, FlowBlockContextFunctionCallback | undefined> = {} as any;
 
     constructor(id: string, flow?: FlowContext) {
         this.id = id;
@@ -35,14 +54,13 @@ export default class FlowBlockContext {
         if(!flow) return;
         this.flowCtx = flow;
 
-        this.init();
-    }
+        const def = this.findDef();
+        const type = ExtensionController.findModule(FlowBlock, def.type)
 
-    protected init() {   
-        this.def = this.findDef();
-        this.type = this.findType();
-        this.manifest = this.type.manifest;
-        this.layout = new Manifest(this.type.layout());
+        this.def = def;
+        this.instance = new type();
+        this.manifest = type.manifest;
+        this.layout = new Manifest(type.layout());
 
         // Create parameter contexts
         this.def.parameters.forEach(p => {
@@ -54,36 +72,39 @@ export default class FlowBlockContext {
             this._statements[s.id] = new FlowBlockStatementContext(s.id, this);
         })
 
-        return this;
+        // Memoize methods
+        this.rootBlock = _.memoize(this.rootBlock.bind(this));
     }
 
     async execute() {
         try {
-            let result = this.type.prototype.run(this);
+            let result = this.instance.run(this);
 
             if(result instanceof Promise) {
                 result = await result.catch((err: any) => {
-                    this.flowCtx.flow.logger.error(`Error running block ${this.def.id}:`, { err });
+                    this.flowCtx.flow.logger.error(`Error running block ${this.def.id}:`, err);
                 });
             }
             
-            logger.debug(`Executed ${this.id} (type:${this.def.type}; output: ${result})`);
+            this.flowCtx.flow.logger.debug(`Executed ${this.id} (type:${this.def.type}; output: ${result})`);
             return result;
         } catch(err: any) {
-            this.flowCtx.flow.logger.error(`Error running block ${this.def.id}:`, { err });
+            this.flowCtx.flow.logger.error(`Error running block ${this.def.id}:`, err);
         }
-    }
-
-    root() {
-        return this.flowCtx;
-    }
-
-    isOfType(moduleClass: Constructor<FlowBlock>) {
-        return this.type.prototype instanceof moduleClass;
     }
 
     hasParent() {
         return (typeof this.parentBlock() !== 'undefined');
+    }
+
+    rootBlock() {
+        let rootBlock = this.parentBlock();
+
+        while(rootBlock.hasParent()) {
+            rootBlock = rootBlock.parentBlock();
+        }
+
+        return rootBlock;
     }
 
     parentBlock() {
@@ -112,8 +133,13 @@ export default class FlowBlockContext {
         return await PromiseAllObject(promises);
     }
 
-    thisStatement(): FlowBlockStatementContext {
+    currentStatement(): FlowBlockStatementContext {
         return ensureFind(this.parentBlock()!.statements(), s => s.blocks().includes(this));
+    }
+
+    listen<TModel extends Model<any>, TEventName extends Parameters<TModel['on']>[0]>(model: TModel, eventName: TEventName, callback: ModelEventCallback<any>) {
+        model.on(eventName, callback);
+        this.listeners.push({ model, eventName, callback });
     }
 
     statement(statementId: string): FlowBlockStatementContext {
@@ -125,12 +151,62 @@ export default class FlowBlockContext {
     }
 
     siblings() {
-        const stmt = this.thisStatement();
+        const stmt = this.currentStatement();
         return stmt ? stmt.blocks() : [];
     }
 
-    registerTimedTask<TData = any>(date: Date, keyword: string, data?: TData) {
-        Taskrunner.registerTimedTask<FlowBlockCustomTaskData<TData>>(date, 'FLOW_TASK', {
+    registerHandler(name: FlowblockContextHandlerName, callback: FlowBlockContextFunctionCallback) {
+        this.handlers[name] = callback;
+    }
+    
+    invokeHandler(name: FlowblockContextHandlerName) {
+        try {
+            const handler = this.getHandler(name);
+
+            if(typeof handler === 'function') {
+                this.flowCtx.flow.logger.debug(`Invoking '${name}' handler of block '${this.id}'.`);
+                handler!();
+                return true;
+            }
+
+            throw new Error('Handler not found.');
+        } catch(err: any) {
+            this.flowCtx.flow.logger.debug(`Error invoking '${name}' handler of block '${this.id}':`, err);
+        }
+
+        return false;
+    }
+
+    getHandler(name: FlowblockContextHandlerName): FlowBlockContextFunctionCallback | undefined {
+        let handler: FlowBlockContextFunctionCallback | undefined;
+        let currentBlock: FlowBlockContext = this;
+
+        while(currentBlock && typeof handler !== 'function') {
+            handler = currentBlock.handlers[name];
+            currentBlock = currentBlock.parentBlock();
+        }
+
+        return handler;
+    }
+
+    setVariable(name: string, value: any) {
+        this.variables[name] = value;
+    }
+
+    getVariable(name: string) {
+        let value;
+        let currentBlock: FlowBlockContext = this;
+
+        while(currentBlock && typeof value !== 'function') {
+            value = currentBlock.variables[name];
+            currentBlock = currentBlock.parentBlock();
+        }
+
+        return value;
+    }
+
+    addTimedTask<TData = any>(date: Date, keyword: string, data?: TData) {
+        this.flowCtx.taskManager.addTimedTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', date, {
             taskType: 'CUSTOM',
             originalKeyword: keyword,
             originalData: data,
@@ -138,8 +214,8 @@ export default class FlowBlockContext {
         })
     }
 
-    registerDelayedTask<TData = any>(msDelay: number, keyword: string, data?: TData) {
-        Taskrunner.registerDelayedTask<FlowBlockCustomTaskData<TData>>(msDelay, 'FLOW_TASK', {
+    addDelayedTask<TData = any>(msDelay: number, keyword: string, data?: TData) {
+        this.flowCtx.taskManager.addDelayedTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', msDelay, {
             taskType: 'CUSTOM',
             originalKeyword: keyword,
             originalData: data,
@@ -147,8 +223,8 @@ export default class FlowBlockContext {
         })
     }
 
-    registerRepeatingTask<TData = any>(intervalSeconds: number, keyword: string, data?: TData) {
-        Taskrunner.registerRepeatingTask<FlowBlockCustomTaskData<TData>>(intervalSeconds, 'FLOW_TASK', {
+    addRepeatingTask<TData = any>(interval: string, keyword: string, data?: TData) {
+        this.flowCtx.taskManager.addRepeatingTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', interval, {
             taskType: 'CUSTOM',
             originalKeyword: keyword,
             originalData: data,
@@ -157,21 +233,29 @@ export default class FlowBlockContext {
     }
 
     mount() {
-        this.type.prototype.mount(this);
+        this.isMounted = true;
+        this.instance.mount(this);
+    }
+
+    unmount() {
+        console.log(this.listeners);
+        this.listeners.forEach(({ model, eventName, callback }, i) => {
+            model.off(eventName, callback);
+            delete this.listeners[i];
+        });
+
+        this.isMounted = false;
+        this.instance.unmount(this);
     }
 
     protected findDef(): FlowScriptBlock {
         const def = this.flowCtx.script.blocks.find(b => b.id === this.id);
 
         if(!def) {
-            throw new Error(`Definition for flow block '${this.id}' not found.`);
+            throw new Error(`Definition for block '${this.id}' not found.`);
         }
         
         return def;
-    }
-
-    protected findType() {
-        return ExtensionController.findModule(FlowBlock, this.def.type);
     }
 
     protected serialize(): FlowTaskData['ctx'] {
@@ -180,7 +264,7 @@ export default class FlowBlockContext {
                 type: this.def.type,
                 id: this.def.id
             },
-            flowId: this.root().flow.getId() 
+            flowId: this.flowCtx.flow.getId() 
         }
     }
 }

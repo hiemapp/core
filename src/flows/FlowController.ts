@@ -15,8 +15,8 @@ export default class FlowController extends ControllerDatabase<Flow>() {
         const blocks: FlowBlockContext[] = [];
 
         this.index().forEach(flow => {
-            flow.getBlocks().forEach(block => {
-                blocks.push(block);
+            flow.getBlocks().forEach(blockCtx => {
+                blocks.push(blockCtx);
             })
         })
 

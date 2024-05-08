@@ -1,28 +1,28 @@
-import Model, { ModelConfig } from '../lib/Model';
+import Model, { ModelType, ModelConfig } from '../lib/Model';
 import { PromiseAllObject } from '../utils/Promise';
 import _, { split } from 'lodash';
 
-export interface ModelWithPropsConfig<
-    TProps, TPropsSerialized
-> extends ModelConfig {
-    dynamicProps?: {
-        [K in keyof TPropsSerialized]?: () => TPropsSerialized[K]
-    },
-    filterProps?: {
-        [key in keyof TPropsSerialized]?: (boolean | (() => boolean))
-    },
-    controller: any;
-    defaults: Required<Omit<TProps, 'id'>>;
+export interface ModelWithPropsType extends ModelType {
+    props: {},
+    serializedProps: {},
 }
 
-abstract class ModelWithProps<
-    TProps extends { id: number | string } = { id: number }, 
-    TPropsSerialized extends TProps = TProps
-> extends Model<TProps['id']> {
-    protected __modelProps: TProps = {} as TProps;
-    protected abstract __modelConfig(): ModelWithPropsConfig<TProps, TPropsSerialized>;
+export interface ModelWithPropsConfig<T extends ModelWithPropsType> extends ModelConfig {
+    dynamicProps?: {
+        [K in keyof T['serializedProps']]?: () => T['serializedProps'][K]
+    },
+    filterProps?: {
+        [key in keyof T['serializedProps']]?: (boolean | (() => boolean))
+    },
+    controller: any;
+    defaults: Required<Omit<T['props'], 'id'>>;
+}
 
-    constructor(id: TProps['id'], props: Omit<TProps, 'id'>) {
+abstract class ModelWithProps<T extends ModelWithPropsType> extends Model<T> {
+    protected __modelProps: T['props'] = {} as T['props'];
+    protected abstract __modelConfig(): ModelWithPropsConfig<T>;
+
+    constructor(id: T['id'], props: Omit<T['props'], 'id'>) {
         super(id);
         const config = this.__modelConfig();
 
@@ -37,8 +37,8 @@ abstract class ModelWithProps<
      * Get all properties of the model.
      * @returns A copy of the properties of the model.
      */
-    getProps(): TProps {
-        return {...this.__modelProps, id: this.__modelId } as TProps;
+    getProps(): T['props'] {
+        return {...this.__modelProps, id: this.__modelId } as T['props'];
     }
 
     async getAllProps() {
@@ -61,17 +61,17 @@ abstract class ModelWithProps<
      * Get a specific property by keypath.
      * @param keypath The keypath of the property to get.
      */
-    getProp<TKey extends keyof TProps>(keypath: TKey): TProps[TKey];
+    getProp<TKey extends keyof T['props']>(keypath: TKey): T['props'][TKey];
     getProp(keypath: string): any;
     getProp(keypath: string) {
         return _.get(this.getProps(), keypath);
     }
 
-    async getDynamicProp<TKey extends keyof TPropsSerialized>(keypath: TKey): Promise<TPropsSerialized[TKey]>;
+    async getDynamicProp<TKey extends keyof T['serializedProps']>(keypath: TKey): Promise<T['serializedProps'][TKey]>;
     async getDynamicProp(keypath: string): Promise<any>;
     async getDynamicProp(keypath: string) {
         const splitKeypath = keypath.split('.');
-        const key = splitKeypath[0] as keyof TPropsSerialized;
+        const key = splitKeypath[0] as keyof T['serializedProps'];
         const rest = splitKeypath.slice(1).join('.');
 
         const handler = this.__modelConfig().dynamicProps?.[key];
@@ -86,7 +86,7 @@ abstract class ModelWithProps<
      * @param keypath The keypath of the property to set.
      * @param value The value to set the property to.
      */
-    setProp<TKey extends keyof TProps>(keypath: TKey, value: any): this;
+    setProp<TKey extends keyof T['props']>(keypath: TKey, value: any): this;
     setProp(keypath: string, value: any): this;
     setProp(keypath: string, value: any) {
         // Mutate model properties

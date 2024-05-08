@@ -6,8 +6,8 @@ import { type ExtensionModuleName, type ExtensionModuleClass } from './Extension
 import type Manifest from '../utils/Manifest';
 import fs from 'fs';
 import ExtensionModuleNotRegisteredError from '../errors/ExtensionModuleNotRegisteredError';
+import type { ExtensionType } from './Extension.types';
 
-const GLOB_PATTERN_MODULES = 'modules/**/*/index.js';
 const GLOB_PATTERN_ASSETS = ['assets/language/*.json'];
 
 interface ExtensionModules {
@@ -20,7 +20,7 @@ interface ExtensionLib {
     activate: () => void;
 }
 
-class Extension extends Model<string> {
+class Extension extends Model<ExtensionType> {
     public dir: string;
     public modules: ExtensionModules = {};
     public manifest: Manifest;

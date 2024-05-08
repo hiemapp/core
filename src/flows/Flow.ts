@@ -1,16 +1,20 @@
 import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
 import _ from 'lodash';
 import FlowController from './FlowController';
-import { FlowBlocklyWorkspace, FlowProps, FlowBlockCustomTaskData } from './Flow.types';
+import { FlowType, FlowBlockCustomTaskData, FlowBlocklyWorkspace } from './Flow.types';
 import FlowBlockContext from './FlowBlockContext/FlowBlockContext';
 import FlowTranspiler from './FlowTranspiler';
 import FlowContext from './FlowContext/FlowContext';
-import Taskrunner, { TaskrunnerTaskEvent } from '../lib/Taskrunner';
+import Taskrunner, { Task } from '../lib/Taskrunner';
 import ExtensionController from '../extensions/ExtensionController';
 import FlowBlock from './FlowBlock';
+import Taskmanager from '~/lib/TaskManager';
 
-export default class Flow extends ModelWithProps<FlowProps> {
-    __modelConfig(): ModelWithPropsConfig<FlowProps, FlowProps> {
+export default class Flow extends ModelWithProps<FlowType> {
+    protected context: { blocks: Record<string, FlowBlockContext>, flow: FlowContext };
+    protected taskManager: Taskmanager;
+
+    __modelConfig(): ModelWithPropsConfig<FlowType> {
         return {
             controller: FlowController,
             defaults: {
@@ -23,34 +27,33 @@ export default class Flow extends ModelWithProps<FlowProps> {
             }
         }
     }
+    
+    protected init() {
+        this.taskManager = new Taskmanager(`flows.flow${this.getId()}`);
+        this.taskManager.addHandler('FLOW_TASK', this.handleBlockCustomTask);
+    }
 
-    reload() {
+    async reload(newWorkspace: FlowBlocklyWorkspace) {
         this.logger.debug('Reloading...');
-        const { blocks } = this.createContext();
 
-        // Remove all existing tasks for this flow
-        const tasks = Taskrunner.indexTasks();
-        tasks.forEach(t => {
+        // Unmount all the blocks
+        await Promise.all(Object.values(this.context.blocks).map(blockCtx => {
+            blockCtx.unmount();
+        }))
+        
+        // Delete all existing tasks
+        await Promise.all(Taskrunner.index().map(t => {
             if (t.keyword === 'FLOW_TASK' && t.data.ctx.flowId === this.getId()) {
                 Taskrunner.deleteTask(t.uuid);
             }
-        })
+        }));
 
-        // Mount all the blocks
-        Object.values(blocks).forEach(blockCtx => {
-            blockCtx.mount();
-        })
+        this.setProp('blocklyWorkspace', newWorkspace);
+
+        await this.load();
     }
 
-    protected init() {
-        Taskrunner.on('task', e => this.handleBlockCustomTask(e));
-    }
-
-    getBlocks() {
-        return Object.values(this.createContext().blocks);
-    }
-
-    protected createContext() {
+    async load() {
         const transpiler = new FlowTranspiler();
         const script = transpiler.transpileWorkspace(this.getProp('blocklyWorkspace'));
 
@@ -64,32 +67,42 @@ export default class Flow extends ModelWithProps<FlowProps> {
             blocks[block.id] = new FlowBlockContext(block.id, flow)
         })
 
-        return { blocks, flow };
+        // Store the context
+        this.context = { blocks, flow };
+
+        // Mount all the blocks
+        await Promise.all(Object.values(blocks).map(blockCtx => {
+            return blockCtx.mount();
+        }))  
     }
 
-    protected handleBlockCustomTask(e: TaskrunnerTaskEvent<FlowBlockCustomTaskData>) {
-        if (e.task.data.taskType !== 'CUSTOM') return;
-        if (e.task.data.ctx.flowId !== this.getId()) return;
+    getBlocks() {
+        return Object.values(this.context.blocks);
+    }
+
+    protected handleBlockCustomTask(task: Task) {
+        if (task.data.taskType !== 'CUSTOM') return;
+        if (task.data.ctx.flowId !== this.getId()) return;
 
         try {
-            const data = e.task.data;
-            const { blocks } = this.createContext();
+            const data = task.data;
+            const { blocks } = this.context;
             const blockType = ExtensionController.findModule(FlowBlock, data.ctx.block.type);
             const blockCtx = blocks[data.ctx.block.id];
 
-            const task = {
-                keyword: e.task.data.originalKeyword,
-                data: e.task.data.originalData
+            const originalTask = {
+                keyword: task.data.originalKeyword,
+                data: task.data.originalData
             };
 
-            blockType.prototype.handleTask(task, blockCtx);
+            blockType.prototype.handleTask(originalTask, blockCtx);
         } catch (err: any) {
             this.logger.error(err);
         }
     }
 
     execute() {
-        const { blocks } = this.createContext();
+        const { blocks } = this.context;
 
         Object.values(blocks).forEach(block => {
             if (!block.hasParent()) {

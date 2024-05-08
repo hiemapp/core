@@ -1,20 +1,28 @@
 export interface DeviceStateDisplay {
     buttons?: DeviceStateDisplayButton[];
-    tile?: DeviceStateDisplayTile;
     recording?: DeviceStateDisplayRecording;
+    tile?: DeviceStateDisplayTile;
+    text?: DeviceStateDisplayText
 }
-export interface DeviceStateDisplayButton extends DeviceStateDisplay {
+
+export interface DeviceStateDisplayText {
+    content: string | number;
+}
+
+export interface DeviceStateDisplayButton {
     icon: string;
     input: string;
     color?: string;
     isActive?: boolean;
 }
-export interface DeviceStateDisplayTile extends DeviceStateDisplay {
+
+export interface DeviceStateDisplayTile {
     title: string;
     icon?: string;
     thumbnailSrc?: string;
     description?: string;
 }
-export interface DeviceStateDisplayRecording extends DeviceStateDisplay {
+
+export interface DeviceStateDisplayRecording {
     field: string;
 }

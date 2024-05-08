@@ -1,13 +1,12 @@
 import Device from './Device';
-import type { DeviceProps } from './Device.types';
+import type { DeviceType } from './Device.types';
 import { ExtensionModuleFactory } from '~/extensions/ExtensionModule';
 import Manifest from '~/utils/Manifest';
 
 export default class DeviceConnector<TSettings extends {} = {}> extends ExtensionModuleFactory<any>() {
     protected idOptionKey = 'id';
-    protected config: DeviceProps['connector'];
+    protected config: DeviceType['props']['connector'];
     protected device: Device;
-    private _emittedCreateEvent: boolean = false;
 
     private _isOpen: boolean = false;
     get isOpen() {
@@ -19,7 +18,7 @@ export default class DeviceConnector<TSettings extends {} = {}> extends Extensio
         return this._settings;
     }
 
-    constructor(device: Device, config: DeviceProps['connector']) {
+    constructor(device: Device, config: DeviceType['props']['connector']) {
         super();
 
         this.device = device;
@@ -39,6 +38,10 @@ export default class DeviceConnector<TSettings extends {} = {}> extends Extensio
      */
     write(data: unknown) {
         throw new Error('Method write() is not implemented.');
+    }
+
+    read(): unknown {
+        throw new Error('Method read() is not implemented.');
     }
 
     isReady(action?: 'WRITE' | 'READ'): boolean {
@@ -77,23 +80,12 @@ export default class DeviceConnector<TSettings extends {} = {}> extends Extensio
      */
     emit(event: string, ...args: any[]): boolean {
         switch (event) {
-            case 'create':
-                this._emittedCreateEvent = true;
-                super.emit('create');
-                break;
-
-            case 'destroy':
-                this._emittedCreateEvent = false;
+            case 'close':
                 this._isOpen = false;
-                super.emit('destroy');
+                super.emit('close');
                 break;
 
             case 'open':
-                if (!this._emittedCreateEvent) {
-                    this.logger.error(new Error(`Cannot emit an 'open' event before emitting a 'create' event.`));
-                    break;
-                }
-
                 this._isOpen = true;
                 super.emit('open');
                 break;

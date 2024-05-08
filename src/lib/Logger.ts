@@ -36,51 +36,49 @@ export default class Logger {
         return new Logger(defaultOptions);
     }
 
-    print(data: string | Error, options: ILoggerOptions) {
+    protected print(messages: any[], options: ILoggerOptions) {
         options = _.defaults(options, this.defaultOptions);
-        const line = [];
-        let message: string;
+        const prefix = [];
+        const errors: Error[] = [];
 
-        // MESSAGE
-        if(data instanceof Error) {           
-            message = data.message;
-        } else if(options.err instanceof Error) {
-            message = `${_.trimEnd(data, ': ')}: ${options.err.message}`;
-        } else {
-            message = data;
-        }
-
-
-        // TIME
+        // Time
         const time = this.getTimeString();
-        line.push(time);
+        prefix.push(time);
 
-        // LABEL
+        // Label
         const label = _.trimEnd(_.trimStart(options.label, '['), ']');
-        line.push('['+label+']');
+        prefix.push('['+label+']');
 
-        // LEVEL
+        // Level
         const level = this.colors[options.level!](options.level!);
-        line.push(level+':');
-        
-        // MESSAGE
-        line.push(message);
+        prefix.push(level+':');
 
-        // META
+        const args = [ prefix.join(' ') ];
+
+        // Messages
+        messages.forEach(item => {      
+            if(item instanceof Error) {
+                errors.push(item);
+                item = item.message;
+            }
+            
+            args.push(item);
+        })
+        
+        // Meta
         if(options.meta) {
-            const meta = JSON.stringify(options.meta);
-            line.push(meta);
+            args.push(JSON.stringify(options.meta));
         }
 
-        console.log(line.join(' '));
+        console.log(...args);
 
-        // Log error stack
-        if(process.env.NODE_ENV === 'development') {
-            if(data instanceof Error && data.stack) {
-                console.error(data.stack.slice(7 + data.message.length + 1));
-            } else if(options.err instanceof Error && options.err.stack) {
-                console.error(options.err.stack.slice(7 + options.err.message.length + 1));
-            }
+        // Log error stacks
+        if(process.env.NODE_ENV === 'development' && errors.length) {
+            errors.forEach(error => {
+                if(typeof error.stack === 'string') {
+                    console.error(error.stack.slice(7 + error.message.length + 1));
+                }
+            })
         }
     }
 
@@ -88,24 +86,24 @@ export default class Logger {
         return kolorist.italic(kolorist.gray(dayjs().format('HH:mm:ss.SSS')));
     }
 
-    error(message: string | Error, options: ILoggerOptions = {}) {
-        this.print(message, { ...options, level: 'error' });
+    error(...messages: any[]) {
+        this.print(messages, { level: 'error' });
     }
 
-    warn(message: string, options: ILoggerOptions = {}) {
-        this.print(message, { ...options, level: 'warn' });
+    warn(...messages: any[]) {
+        this.print(messages, { level: 'warn' });
     }
 
-    info(message: string, options: ILoggerOptions = {}) {
-        this.print(message, { ...options, level: 'info' });
+    info(...messages: any[]) {
+        this.print(messages, { level: 'info' });
     }
 
-    notice(message: string, options: ILoggerOptions = {}) {
-        this.print(message, { ...options, level: 'notice' });
+    notice(...messages: any[]) {
+        this.print(messages, { level: 'notice' });
     }
 
-    debug(message: string, options: ILoggerOptions = {}) {
-        this.print(message, { ...options, level: 'debug' });
+    debug(...messages: any[]) {
+        this.print(messages, { level: 'debug' });
     }
 }
 
