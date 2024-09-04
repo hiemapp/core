@@ -1,74 +1,18 @@
 import { ModelWithPropsType } from '~/lib/ModelWithProps';
+import { FlowBlockDef } from './FlowBlockDef.types';
+import { BlocklySerializedWorkspace } from './BlocklyTranspiler';
 
 export interface FlowType extends ModelWithPropsType {
     id: number,
     props: FlowProps,
-    serializedProps: FlowProps,
-    events: {}
+    serializedProps: FlowProps
 }
 
 export interface FlowProps {
     id: number;
     name: string;
     icon: string;
-    blocklyWorkspace: FlowBlocklyWorkspace;
-}
-
-export interface FlowBlocklyWorkspace {
-    languageVersion: number;
-    blocks: FlowBlocklyWorkspaceBlock[];
-}
-
-export interface FlowBlocklyWorkspaceBlock {
-    type: string;
-    id: string;
-    inputs: {
-        [id: string]: FlowBlocklyWorkspaceBlockInput;
-    };
-    fields?: {
-        [id: string]: any;
-    };
-    next?: {
-        block: FlowBlocklyWorkspaceBlock;
-    };
-}
-export interface FlowBlocklyWorkspaceBlockInput {
-    shadow?: {
-        type: string;
-        id: string;
-        fields?: {
-            [id: string]: any;
-        };
-    };
-    block?: FlowBlocklyWorkspaceBlock;
-}
-export interface FlowScriptBlock {
-    type: string;
-    id: string;
-    parent: {
-        id: string;
-    };
-    parameters: FlowScriptBlockParameter[];
-    statements: FlowScriptBlockStatement[];
-}
-export interface FlowScriptBlockStatement {
-    id: string;
-    children: string[];
-}
-export interface FlowScriptBlockParameter {
-    id: string;
-    value: {
-        block?: string | null;
-        constant?: any;
-    };
-}
-export interface FlowScript {
-    blocks: FlowScriptBlock[];
-}
-
-export interface FlowBlockCustomTaskData<TOriginalData = any> extends FlowTaskData {
-    originalKeyword: string;
-    originalData?: TOriginalData
+    state: BlocklySerializedWorkspace;
 }
 
 export interface FlowTaskData {
@@ -80,4 +24,8 @@ export interface FlowTaskData {
             type: string;
         };
     };
+}
+
+export interface FlowDef {
+    blocks: FlowBlockDef[];
 }

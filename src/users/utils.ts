@@ -1,8 +1,8 @@
-import randomstring from 'randomstring';
+import cryptoRandomString from 'crypto-random-string';
 
 export function generateNewPassword() {
     return (
-        randomstring.generate({ length: 3, charset: 'alphabetic', readable: true }) +
-        randomstring.generate({ length: 5, charset: 'numeric' })
+        cryptoRandomString({ length: 3, characters: 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ' }) +
+        cryptoRandomString({ length: 5, characters: '0123456789' })
     );
 }

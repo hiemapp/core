@@ -32,6 +32,9 @@ export default function ControllerDatabase<T extends ModelWithProps<any>>() {
                 
                 data[row.id] = new model(row.id, _.omit(row, 'id'));
             });
+            
+            // Call the .init() method on each model
+            await Promise.all(Object.values(data).map(m => m.__init()));
 
             this.store(data);
         }

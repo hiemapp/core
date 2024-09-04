@@ -1,22 +1,29 @@
-import type { FlowScript } from '~/flows/Flow.types';
+import type { FlowDef } from '~/flows/Flow.types';
 import FlowBlockContext from '../FlowBlockContext/FlowBlockContext';
 import type Flow from '../Flow';
-import Taskmanager from '~/lib/TaskManager';
+import _ from 'lodash';
 
 export default class FlowContext {
     readonly flow: Flow;
-    readonly script: FlowScript;
-    readonly taskManager: Taskmanager;
-    protected readonly blockCtxs: Record<string, FlowBlockContext>
+    readonly def: FlowDef;
+    protected readonly blocks: Record<string, FlowBlockContext>;
+    protected meta: Record<string, any> = {};
 
-    constructor(flow: Flow, script: FlowScript, blockCtxs: Record<string, FlowBlockContext>) {
+    constructor(flow: Flow, def: FlowDef, blocks: Record<string, FlowBlockContext>) {
         this.flow = flow;
-        this.script = script;
-        this.blockCtxs = blockCtxs;
-        this.taskManager = new Taskmanager(`FLOW_${this.flow.getId()}`);
+        this.def = def;
+        this.blocks = blocks;
     }
 
-    findBlock(blockId: string): FlowBlockContext {
-        return this.blockCtxs[blockId];
+    getBlock(blockId: string): FlowBlockContext {
+        return this.blocks[blockId];
+    }
+
+    setMeta(keypath: string, value: any) {
+        return _.set(this.meta, keypath, value);
+    }
+
+    getMeta(keypath: string) {
+        return _.get(this.meta, keypath);
     }
 }

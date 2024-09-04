@@ -1,26 +1,25 @@
-import type { FlowScriptBlockStatement } from '~/flows/Flow.types';
-import type { FlowBlockLayoutStatement } from '~/flows/FlowBlockLayout.types'
+import type { FlowBlockStatementDef } from '~/flows/FlowBlockDef.types';
+import type { IFlowBlockLayout_statement } from '~/flows/FlowBlockLayout.types'
 import type FlowBlockContext from './FlowBlockContext';
 import FlowBlockInputContext from './FlowBlockInputContext';
-import { ensureFind } from '~/utils/object';
 
-export default class FlowBlockStatementContext extends FlowBlockInputContext {
-    protected def: FlowScriptBlockStatement;
-    protected layout: FlowBlockLayoutStatement;
+export default class FlowBlockStatementContext extends FlowBlockInputContext<FlowBlockStatementDef, IFlowBlockLayout_statement> {
     protected pointerIndex: number = 0;
     protected isExecutionStopped: boolean = false;
 
-    protected init() {
-        this.def = ensureFind(this.blockCtx.def.statements!, s => s.id === this.id);
-        this.layout = ensureFind(this.blockCtx.layout.getArr('statements'), s => s.id === this.id);
-    }
-
     async execute(pointerIndex: number = 0) {
+        this.events.emit('execute');
         this.movePointer(pointerIndex);
 
-        while(!this.isExecutionStopped && this.pointerIndex < this.blocks().length) {
+        while(!this.isExecutionStopped) {
             await this.executeBlock(this.pointerIndex);
-            this.pointerIndex++;
+
+            if(this.pointerIndex < this.blocks().length) {
+                this.pointerIndex++;
+            } else {
+                this.events.emit('end');
+                break;
+            }
         }
     }
 
@@ -40,15 +39,21 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext {
     }
 
     blocks(): FlowBlockContext[] {
-        return this.def.children.map(id => this.blockCtx.flowCtx.findBlock(id))
+        return this.def.children.map(id => this.blockCtx.flowCtx.getBlock(id))
+    }
+    
+    executionStopped() {
+        return this.isExecutionStopped;
     }
 
     stopExecution(isExecutionStopped: boolean = true) {
         this.isExecutionStopped = isExecutionStopped;
+        this.events.emit('stop');
     }
 
-    startExecution(pointerIndex: number = this.pointerIndex) {
+    resumeExecution(pointerIndex: number = this.pointerIndex) {
         this.isExecutionStopped = false;
+        this.events.emit('resume');
         return this.execute(pointerIndex);
     }
 

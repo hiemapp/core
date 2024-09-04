@@ -1,66 +1,60 @@
-import { ExtensionModuleFactory, type ExtensionModuleConfig } from '../extensions/ExtensionModule';
-import DeviceState from './DeviceState';
+import { Connector } from '~/connectors';
+import ExtensionModule, { ExtensionModuleProviderFunction, TExtensionModule } from '../extensions/ExtensionModule';
 import Device from './Device';
-import type { DeviceDriverManifest } from './DeviceDriver.types';
-import type { DeviceType } from './Device.types';
+import DeviceTrait from './DeviceTrait/DeviceTrait';
+import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
+import { InferDeviceTraitConfig } from './DeviceTrait/DeviceTrait.types';
+import { Constructor } from '~types/helpers';
+import { DeviceDriverManifest } from './DeviceDriver.types';
 
-export default class DeviceDriver extends ExtensionModuleFactory<DeviceDriverManifest>() {
-    device: Device;
-    options: any;
+export interface TDeviceDriver extends TExtensionModule {
+    providers: TExtensionModule['providers'] & {
+        manifest: (device: Device) => DeviceDriverManifest;
+        checkConnection: (device: Device) => boolean;
+    },
+    events: {
+        'connectors:add': [ Connector ],
+        'devices:add': [ Device ]
+    },
+    methods: {
+        addDevice: (device: Device) => boolean
+    }
+}
 
-    static extensionModuleConfig: ExtensionModuleConfig = {
-        manifestRequired: true
+export default class DeviceDriver<TData extends {} = {}> extends ExtensionModule<TDeviceDriver, TData> {
+    protected _devices: Device[] = [];
+
+    protected _init() {
+        this.$module.methods.addDevice = this._addDevice.bind(this);
     }
 
-    /**
-     * Create a new instance.
-     * @param device - The device that the driver works for.
-     */
-    constructor(device: Device) {
-        super();
-
-        this.device = device;
-        this.options = this.device.getProp('driver.options') || {};
-
-        this.setup();
+    set checkConnection(checkConnection: ExtensionModuleProviderFunction<TDeviceDriver, 'checkConnection'>) {
+        this._registerProvider('checkConnection', checkConnection);
     }
 
-    /**
-     * Is called once to allow for setting up any event listeners.
-     */
-    setup(): void { }
-
-    /**
-     * Create a DeviceState representing the current state of the device.
-     * @returns The current state.
-     */
-    getState(): DeviceState | void {
-        const state = new DeviceState();
-
-        state.setIsActive(false);
-
-        return state;
+    addCommand<TTrait extends DeviceTrait<any>, TCommand extends keyof InferDeviceTraitConfig<TTrait>['commands'] & string>(
+        command: TCommand, 
+        handler: (device: Device, params: DeviceCommandParams<InferDeviceTraitConfig<TTrait>['commands'][TCommand]>) => unknown, 
+        trait?: Constructor<TTrait>
+    ) {
+        this._registerProvider(`commands.${command}`, handler);
     }
 
-    /**
-     *
-     * @param current - The current connector config.
-     * @returns The modified connector config.
-     */
-    modifyConnectorConfig(current: DeviceType['props']['connector']): DeviceType['props']['connector'] {
-        return current;
+    getDevices() {
+        return [...this._devices];
     }
 
-    /**
-     * @param name - The name of the input to write.
-     * @param value - The value to write.
-     * @param callback - The callback to call when the value is set.
-     */
-    handleInput(name: string, value: any, callback: (err?: Error) => any): void {
-        callback();
-    }
+    protected _addDevice(device: Device) {
+        if(this._devices.includes(device)) return false;
 
-    getInputs() {
-        return this.manifest.getArr('inputs');
+        const isNewConnector = this._devices.every(d => d.connector !== device.connector);
+        if(isNewConnector) {
+            this.emit('connectors:add', device.connector);
+        }
+
+        this._devices.push(device);
+        this.emit('devices:add', device);
+
+        return true;
     }
 }

@@ -1,1 +1,0 @@
-export { Script, ScriptController } from '~/scripts';

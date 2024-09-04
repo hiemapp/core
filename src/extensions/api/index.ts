@@ -1,9 +1,10 @@
 export * as flows from './flows';
 export * as devices from './devices';
-export * as utils from './utils';
+export * as connectors from './connectors';
 export * as registry from './registry';
 export * as records from './records';
-export * as localization from './localization';
 export * as dashboard from './dashboard';
-export * as scripts from './scripts';
 export * as ui from './ui';
+export * as errors from './errors';
+export * from './lib';
+export * as utils from './utils';

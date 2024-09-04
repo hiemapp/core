@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { JSONParseOrFail } from '../utils/string';
 import { logger } from '../lib/Logger';
 
@@ -23,25 +23,14 @@ export default class Manifest<TData extends {} = {}> {
         }
     }
 
-    static fromFile<T extends {} = {}>(filepath: string) {
-        return new Promise<Manifest<T>>((resolve, reject) => {
-            fs.access(filepath, (err) => {
-                fs.readFile(filepath, 'utf8', (err, json) => {
-                    const data = JSONParseOrFail(json, {});
-                    return resolve(new Manifest(data, filepath));
-                });
-            });
+    static async fromFile<T extends {} = {}>(filepath: string) {
+        const json = await fs.readFile(filepath, 'utf8').catch(err => {
+            if(err.code !== 'ENOENT') throw err;
         });
-    }
 
-    static fromFileSync<T extends Object = Object>(filepath: string) {
-        let data = {};
-
-        if (fs.existsSync(filepath)) {
-            data = JSON.parse(fs.readFileSync(filepath, 'utf8'));
-        }
-
-        return new Manifest<T>(data as T, filepath);
+        const data = JSONParseOrFail(json!, {});
+        const manifest = new Manifest<T>(data, filepath);
+        return manifest;
     }
 
     isEmpty<K extends keyof TData>(keypath: K): boolean;
@@ -104,15 +93,18 @@ export default class Manifest<TData extends {} = {}> {
 
         // If a filepath is supplied, update the file contents as well
         if (this.filepath) {
-            fs.writeFile(this.filepath, JSON.stringify(this.data), (err) => {
-                if (err) throw err;
-            });
+            fs.writeFile(this.filepath, JSON.stringify(this.data));
         }
 
         return this;
     }
 
     toJSON(): TData {
-        return this.data;
+        const serialized = JSON.stringify(this.data, (key, value) => {
+            if(typeof value === 'function') return true;
+            return value;
+        })
+        
+        return JSON.parse(serialized);
     }
 }

@@ -2,17 +2,18 @@ import Model, { ModelConfig } from '../lib/Model';
 import * as _ from 'lodash';
 import * as path from 'path';
 import { globSync } from 'glob';
-import { type ExtensionModuleName, type ExtensionModuleClass } from './ExtensionModule';
+import ExtensionModule, { type ExtensionModuleName } from './ExtensionModule';
 import type Manifest from '../utils/Manifest';
 import fs from 'fs';
 import ExtensionModuleNotRegisteredError from '../errors/ExtensionModuleNotRegisteredError';
 import type { ExtensionType } from './Extension.types';
+import { Constructor } from '~types/helpers';
 
 const GLOB_PATTERN_ASSETS = ['assets/language/*.json'];
 
 interface ExtensionModules {
     [key: string]: {
-        [key: string]: (ExtensionModuleClass & any) | undefined;
+        [key: string]: ExtensionModule;
     };
 }
 
@@ -26,8 +27,6 @@ class Extension extends Model<ExtensionType> {
     public manifest: Manifest;
     private lib: ExtensionLib;
 
-    private loadingModules: string[] = [];
-
     constructor(manifest: Manifest, dir: string) {
         super(manifest.get('name'));
 
@@ -39,24 +38,15 @@ class Extension extends Model<ExtensionType> {
 
     /**
      * Register a module.
-     * @param moduleClass - The module to register.
+     * @param extModule - The module to register.
      */
-    registerModule(
-        moduleName: string,
-        moduleClass: ExtensionModuleClass,
-        typeClass: ExtensionModuleClass,
-    ) {
-        this.modules[typeClass.name] = this.modules[typeClass.name] || {};
-        const moduleSlug = `${this.__modelId}.${moduleName}`;
+    registerModule(extModule: ExtensionModule) {
+        const { type, name } = extModule.$module;
 
-        // If a module of this type and with this slug already exists, log an error.
-        if (this.modules[typeClass.name][moduleName]?.isExtensionModule === true) {
-            throw new Error(`${typeClass.name} '${moduleSlug}' was already registered.`);
-        }
+        this.modules[type.name] ??= {};
+        this.modules[type.name][name] = extModule;
 
-        this.modules[typeClass.name][moduleName] = moduleClass;
-
-        this.logger.debug(`Registered ${typeClass.name} '${moduleSlug}'.`);
+        this.logger.debug(`Registered ${extModule}.`);
     }
 
     /**
@@ -65,12 +55,14 @@ class Extension extends Model<ExtensionType> {
      * @param name - The name of the module to find.
      * @returns The module.
      */
-    getModule<T extends ExtensionModuleClass>(type: T, name: ExtensionModuleName) {
+    getModule<T extends ExtensionModule>(type: Constructor<T>, name: ExtensionModuleName): T {
         const module = this.getModuleOrFail(type, name);
 
-        if (module?.isExtensionModule === true) return module;
+        if (!module) {
+            throw new ExtensionModuleNotRegisteredError(`${type.name} '${this.__modelId}.${name}' is not registered.`);
+        }
 
-        throw new ExtensionModuleNotRegisteredError(`${type.name} '${this.__modelId}.${name}' is not registered.`);
+        return module;
     }
 
     /**
@@ -79,12 +71,14 @@ class Extension extends Model<ExtensionType> {
      * @param name - The name of the module to find.
      * @returns The module.
      */
-    getModuleOrFail<T extends ExtensionModuleClass>(type: T, name: ExtensionModuleName): T | null {
+    getModuleOrFail<T extends ExtensionModule>(type: Constructor<T>, name: ExtensionModuleName): T | null {
         if (!_.isPlainObject(this.modules[type.name])) return null;
 
-        const module = this.modules[type.name][name];
+        const extModule = this.modules[type.name][name];
 
-        return module?.isExtensionModule === true ? module : null;
+        if(!(extModule instanceof ExtensionModule)) return null;
+
+        return extModule as T;
     }
 
     /**
@@ -106,22 +100,44 @@ class Extension extends Model<ExtensionType> {
      * Load an extension.
      */
     activate() {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>(async (resolve, reject) => {
+            const startTime = Date.now();
+
             try {
                 const mainFilepath = this.getMainFilepath();
 
                 if (!mainFilepath || !fs.existsSync(mainFilepath)) {
-                    throw new Error(`Cannot find main file, looked for '${mainFilepath}'.`);
+                    return reject(`Main file '${mainFilepath}' not found.`);
                 }
 
                 this.lib = require(mainFilepath);
 
                 // Call the 'activate()' function
                 if (typeof this.lib?.activate !== 'function') {
-                    throw new Error("No 'activate()' function was exported.");
+                    return reject("No activate() function was exported.");
                 }
 
+                // Call the function that registers the modules
                 this.lib.activate();
+
+                // Call the .activate() method on each module
+                const promises: Promise<any>[] = [];
+                _.forOwn(this.modules, (modules) => {
+                    _.forOwn(modules, module => {
+                        if(!module.$module.methods.hasProvider('activate')) return;
+                        
+                        module.$module.isActivated = true;
+                        const results = [ module.$module.methods.callProvider('activate', []) ];
+                        results.forEach(result => {
+                            promises.push(result);
+                        })
+                    })
+                })
+                
+                // // Wait until all modules are initialized
+                await Promise.all(promises);
+                this.logger.debug(`Initializing took ${Date.now()-startTime}ms.`);
+
                 resolve();
             } catch (err: any) {
                 reject(err);
@@ -148,8 +164,8 @@ class Extension extends Model<ExtensionType> {
         return null;
     }
 
-    static parseModuleSlug(moduleSlug: string) {
-        const split = moduleSlug.split('.');
+    static parseModuleId(moduleId: string) {
+        const split = moduleId.split('.');
 
         return [ split[0], split.slice(1).join('.') ];
     }

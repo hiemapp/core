@@ -1,2 +1,2 @@
-export { Device, DeviceDriver, DeviceConnector, DeviceController, DeviceState, DeviceDriverManifest } from '~/devices';
-export * as events from '~/devices/events.types';
+export { Device, DeviceDriver, DeviceController, DeviceDisplay, DeviceDriverManifest, DeviceConnection } from '~/devices';
+export { DeviceTraits as traits } from '~/devices';

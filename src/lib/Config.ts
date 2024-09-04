@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import _ from 'lodash';
-import { getDir } from '../utils/paths';
+import { dirs } from '../utils/paths';
 import { logger } from '../lib/Logger';
 import { glob } from 'glob';
 
@@ -15,7 +15,7 @@ export default class Config {
 
     static async load(rootDir: string) {
         this.rootDir = rootDir;
-        const pattern = path.join(getDir('CONFIG'), '*.json').replace(/\\/g, '/');
+        const pattern = path.join(dirs().CONFIG, '*.json').replace(/\\/g, '/');
         const filepaths = await glob(pattern, { absolute: true });
         
         for(const filepath of filepaths) {
@@ -48,13 +48,18 @@ export default class Config {
     }
 
     static getOrCreate(keypath: string, newValue: any): any {
-        const currentValue = this.get(keypath);
+        const currentValue = this.getOrFail(keypath);
         if(typeof currentValue !== 'undefined') {
             return currentValue;
         }
 
         this.update(keypath, newValue);
-        logger.debug(`Created new config entry '${keypath}'.`);
+
+        if(this.getOrFail(keypath) === newValue) {
+            logger.debug(`Created new config entry '${keypath}'.`);
+        } else {
+            throw new Error(`Failed to create new config entry '${keypath}'.`)
+        }
         
         return newValue;
     }
@@ -68,14 +73,14 @@ export default class Config {
         // Update the cache
         _.set(this.cache, keypath, value);
         
-        const filepath = path.join(getDir('CONFIG'), filename+'.json');
+        const filepath = path.join(dirs().CONFIG, filename+'.json');
         
         // Write the updated data to the file
         return fs.writeFile(filepath, JSON.stringify(this.cache[filename]));
     }
     
     private static splitKeypath(keypath: string): [ string, string ] {
-        const split = keypath.split('.')[0];
-        return [ split[0], split.slice(1) ];
+        const split = keypath.split('.');
+        return [ split[0], split.slice(1).join('.') ];
     }
 }

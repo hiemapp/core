@@ -1,16 +1,23 @@
-import DeviceConnector from './DeviceConnector';
 import DeviceDriver from './DeviceDriver';
 import ExtensionController from '../extensions/ExtensionController';
-import ModelWithProps from '../lib/ModelWithProps';
-import WebSocket from '../lib/WebSocket';
-import type { DeviceDriverManifestInputType } from './DeviceDriver.types';
+import ModelWithProps from '~/lib/ModelWithProps';
 import DeviceController from './DeviceController';
 import RecordManager from '../records/RecordManager';
 import _ from 'lodash';
-import type {  DeviceType } from './Device.types';
-import type { ModelWithPropsConfig } from '../lib/ModelWithProps';
+import type { DeviceType } from './Device.types';
+import type { ModelWithPropsConfig } from '~/lib/ModelWithProps';
+import type { ModelEventReason } from '~/lib/ModelEvent';
+import { palettes } from '~/ui/constants/style';
+import DeviceConnectionError from '~/errors/DeviceConnectionError';
+import DeviceCommandNotSupportedError from '~/errors/DeviceCommandNotSupportedError';
+import DeviceTrait from './DeviceTrait/DeviceTrait';
+import { Constructor } from '~types/helpers';
+import DeviceInvalidTraitError from '~/errors/DeviceInvalidTraitError';
+import { Connector, ConnectorController } from '~/connectors';
+import DeviceDisplay from './DeviceDisplay';
+import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
 
-export default class Device extends ModelWithProps<DeviceType> {
+export default class Device extends ModelWithProps<DeviceType> {   
     __modelConfig(): ModelWithPropsConfig<DeviceType> {
         return {
             controller: DeviceController,
@@ -20,137 +27,252 @@ export default class Device extends ModelWithProps<DeviceType> {
             dynamicProps: {
                 connection: () => {
                     return {
-                        exists: true,
-                        isOpen: true
+                        isOpen: this.isConnected()
                     }
                 },
                 state: () => {
-                    if (this.driver) {
-                        const state = this.driver.getState();
-                        if(state && typeof state.toJSON === 'function') {
-                            return state.toJSON();
-                        }
-                    }
-
-                    return {
-                        isActive: false,
-                        display: {}
-                    }
+                    return this.getState();
+                },
+                display: () => {
+                    return this.getDisplay();
+                },
+                traits: () => {
+                    return this.getTraits().map(trait => trait.toJSON())
                 }
             },
             defaults: {
-                name: 'N/A',
+                name: 'Unknown device',
                 icon: 'circle-question',
-                color: 'red',
+                color: 'blue',
                 driver: {
                     type: null,
                     options: {}
                 },
-                connector: {
-                    type: null,
-                    options: {}
-                },
+                connectorId: null,
                 options: {
                     recording: {
                         enabled: false,
                         cooldown: 5,
                         flushThreshold: 5
-                    }
+                    },
+                    dummy: false
                 },
                 metadata: {}
             }
         }
     };
 
-    private _driver?: DeviceDriver;
-    get driver() {
-        return this._driver;
-    }
+    get driver() { return this._driver };
+    protected _driver: DeviceDriver;
 
-    private _connection?: DeviceConnector;
-    get connection() {
-        return this._connection;
-    }
+    get connector() { return this._connector; }
+    protected _connector: Connector;
 
-    private _records: RecordManager;
-    get records() {
-        return this._records;
-    }
+    get records() { return this._records; }
+    protected _records: RecordManager;
 
-    protected init() {
+    async __init() {
         try {
+            this.initConnector();
             this.initDriver();
 
-            if (this._driver) {
-                this.initRecordManager();
-                this.initConnector();
-            }
+            await this.initRecordManager();
+
+            if(!this.isConnected()) return;
         } catch (err: any) {
             this.logger.error('Initialization error: ', err);
         }
     }
 
-    isReady() {
-        return this.getErrors().length === 0;
-    }
+    getTrait<TTrait extends DeviceTrait<any>>(traitClass: Constructor<TTrait>): TTrait {
+        const trait = this.getTraitOrFail(traitClass);
 
-    getErrors(): Error[] {
-        let codes = [];
-        
-        if(!(this._driver instanceof DeviceDriver)) {
-            codes.push('DRIVER_NOT_INITIALIZED');
-        } else if(!(this._connection instanceof DeviceConnector)) {
-            codes.push('CONNECTION_NOT_INITIALIZED');
-        } else if(this._connection?.isOpen !== true) {
-            codes.push('CONNECTION_NOT_OPEN');
+        if(!(trait instanceof traitClass)) {
+            throw new DeviceInvalidTraitError(this, traitClass);
         }
 
-        return codes.map(code => new Error(code));
+        return trait;
     }
 
-    supportsInputOfType(type: DeviceDriverManifestInputType) {
-        return this.driver && this.driver.getInputs().filter(i => i.type === type).length > 0;
+    getTraitOrFail<TTrait extends DeviceTrait<any>>(traitClass: Constructor<TTrait>): TTrait | null {
+        return this.getTraits().find(trait => trait instanceof traitClass) ?? null as any;
     }
 
-    getInput(name: string) {
-        return this.getMetadata(`__INPUTS__.${name}`) ?? { value: null };
+    hasTrait(traitClass: Constructor<DeviceTrait<any>>) {
+        return !!this.getTraitOrFail(traitClass);
     }
 
-    async performInput(name: string, value: any): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const errors = this.getErrors();
-                if(errors.length > 0) {
-                    throw errors[0];
-                }
-                
-                if (!this._driver!.manifest.getArr('inputs').some(i => i.name === name)) {
-                    throw new Error('INPUT_NOT_FOUND');
-                }
 
-                this.logger.debug(`Setting input '${name}' to ${value}.`);
+    getTraits(): DeviceTrait<any>[] {
+        if(!this._driver) return [];
+        return this._driver.getManifest(this).getArr('traits');
+    }
 
-                const inputEvent = this.createEvent('driver:input', { input: { name, value }});
-                await inputEvent.emit();
+    getName() {
+        return this.getProp('name');
+    }
 
-                if(inputEvent.isCanceled) {
-                    this.logger.debug('The input event was canceled.');
-                    return resolve();
-                }
+    getPalette() {
+        const color = this.getProp('color');
+        const paletteId = typeof color === 'string' ? color.toUpperCase() : '';
+        return palettes[paletteId as keyof typeof palettes] ?? palettes.BLUE;
+    }
 
-                this._driver!.handleInput(name, value, (err) => {
-                    if (err) throw err;
-                    
-                    this.setMetadata(`__INPUTS__.${name}`, { value });
-                    this.emit('update', {});
+    getIcon() {
+        return this.getProp('icon');
+    }
 
-                    resolve();
-                });
-            } catch (err: any) {
-                return reject(err);
+    getState(): Record<string, unknown> {
+        const traits = this.getTraits();
+        let state = {};
+
+        traits.forEach(trait => {
+            const newState = trait.getState(this);
+
+            // Later traits shoudn't overwrite the existing state
+            state = {...newState, ...state};
+        })
+
+        return state;
+    }
+
+    getDisplay() {
+        let display = new DeviceDisplay();
+
+        const traits = this.getTraits();
+        traits.forEach(trait => {
+            const result = trait.getDisplay(this, display);
+            if(result instanceof DeviceDisplay) {
+                display = result;
             }
-        });
+        })
+
+        return display.serialize();
     }
+
+    getDriverConfig() {
+        const config = this.getProp('driver');
+
+        return {
+            type: typeof config?.type === 'string' ? config.type : null,
+            options: config.options ?? {}
+        }
+    }
+
+    isConnected() {
+        if(!this._connector || !this._driver) return false;
+        if(!this._connector.isReady()) return false;
+        
+        if(this._driver.$module.methods.hasProvider('checkConnection')) {
+            if(this._driver.$module.methods.callProvider('checkConnection', [ this ]) !== true) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    async execute(command: string, paramsObj: any, reason: ModelEventReason = {}): Promise<void> {
+        return new Promise<void>(async (resolve, reject) => {
+            this.logger.debug('Executing command', command, 'with params', paramsObj);
+            if(!this.isConnected()) {
+                reject(new DeviceConnectionError(this));
+                return;
+            }
+
+            const traits = this.getTraits();
+            const trait = traits.find(trait => {
+                const hasCommand = (typeof trait.commandRegistry[command] !== 'undefined')
+                return hasCommand;
+            })
+
+            if(!trait) {
+                reject(new DeviceCommandNotSupportedError(this));
+                return;
+            }
+
+            // Store the old states so they can be reverted in case of an error.
+            const oldStates: Array<[DeviceTrait<any>, any]> = traits.map(trait => {
+                return [ trait, trait.getState(this) ]
+            });
+
+            const params = new DeviceCommandParams(paramsObj);
+            
+            try {
+                this.emit('execute:start', { command, params });
+
+                const traitHandler = trait.commandRegistry[command];
+                if(typeof traitHandler === 'function') {
+                    await traitHandler(this, params);
+                }
+
+                let driverResult: any;
+                if(this.driver.$module.methods.hasProvider(`commands.${command}`)) {
+                    driverResult = this.driver.$module.methods.callProvider(`commands.${command}`, [ this, params ]);
+                }
+
+                // The driver should perform calls to .setState() immediately,
+                // so we can emit the update before awaiting the promise.
+                this.emit('state:update', { reason: 'execute' });
+
+                if(driverResult instanceof Promise) {
+                    await driverResult;
+                }
+
+                this.emit('execute:done', { command, params, success: true });
+
+                resolve();
+            } catch(err: any) {
+                // Revert the state of every trait
+                oldStates.forEach(([ trait, oldState ]) => {
+                    trait.setState(this, oldState, false);
+                })
+                this.emit('state:update', { reason: 'execute' });
+                this.emit('execute:done', { command, params, success: false });
+
+                reject(err);
+            }
+        })
+    }
+
+    // async setInput(name: string, value: any = null, reason: ModelEventReason = {}): Promise<void> {
+    //     return new Promise(async (resolve, reject) => {
+    //         try {
+    //             if(!this.isReady()) {
+    //                 throw new Error('NOT_READY');
+    //             }
+
+    //             const input = this._driver.getManifest().getArr('inputs').find(i => i.name === name);
+    //             if (!input) {
+    //                 throw new Error('INPUT_NOT_FOUND');
+    //             }
+
+    //             this.logger.debug(`Setting input '${name}' to value ${value}.`);
+
+    //             const inputEvent = this.createEvent('input', { name, value, reason });
+    //             await inputEvent.emit();
+
+    //             if (inputEvent.isCanceled) {
+    //                 this.logger.debug('The input event was canceled.');
+    //                 return resolve();
+    //             }
+
+    //             // const promise = this._driver.setInput(this, name, value)
+
+    //             // if (promise instanceof Promise) {
+    //             //     promise.catch(err => {
+    //             //         reject(err instanceof Error ? err : new Error(err));
+    //             //     })
+    //             //     await promise;
+    //             // }
+
+    //             this.setMetadata(`state.inputs.${name}.value`, value);
+    //             resolve();
+    //         } catch (err: any) {
+    //             return reject(err);
+    //         }
+    //     });
+    // }
 
     /**
      * Get the value of an option.
@@ -190,86 +312,28 @@ export default class Device extends ModelWithProps<DeviceType> {
             return;
         }
 
-        const DriverModule = ExtensionController.findModule(DeviceDriver, driverConfig.type);
-        this._driver = new DriverModule(this);
 
-        if (this.getOption('recording.enabled') && this._driver!.manifest.get('recording.supported') !== true) {
-            this.logger.warn(
-                `Option 'recording.enabled' is set to true, but ${this._driver} does not support recording.`,
-            );
-        }
+        const driver = ExtensionController.findModule(DeviceDriver, driverConfig.type);
+        driver.$module.methods.addDevice(this);
+        this._driver = driver;
     }
 
-    protected initRecordManager(): void {
+    protected async initRecordManager(): Promise<void> {
         this._records = new RecordManager(this);
+        await this._records.init();
     }
 
     /**
      * Initializethe connection.
      */
-    protected initConnector(): boolean {
-        if (!this._driver) {
-            throw new Error('Cannot initialize connection when no driver is initialized.');
-        }
+    protected async initConnector() {
+        const connectorId = this.getProp('connectorId');
+        if(typeof connectorId !== 'number') return;
 
-        let connConfig = this.getProp('connector');
+        const connector = ConnectorController.find(connectorId);
+        this._connector = connector;
 
-        // Invoke the driver's modifyConnectionConfig() method to edit the connection config.
-        this.logger.debug('Calling device driver to edit the connection configuration.');
-        const editedConnConfig = this._driver.modifyConnectorConfig(connConfig);
-
-        if(editedConnConfig.type === 'string') {
-            connConfig = editedConnConfig;
-        }
-
-        if (typeof connConfig?.type != 'string') {
-            this.logger.notice('No connector configured.');
-            return false;
-        }
-
-        const ConnectionModule = ExtensionController.findModule(DeviceConnector, connConfig.type);
-        const connection = new ConnectionModule(this, connConfig);
-
-        connection.on('close', () => {
-            this.logger.debug('Connection closed.');
-            this._connection = undefined;
-
-            this.emit('connection:close', {});
-            this.emit('update', {});
-        });
-
-        connection.on('open', () => {
-            this.logger.debug('Connection open.');
-            this._connection = connection;
-
-            this.emit('connection:open', {});
-            this.emit('update', {});
-        });
-
-        try {
-            const result = connection.connect();
-            this.logger.debug(`Awaiting 'open' event from connector...`);
-
-            if(result instanceof Promise) {
-                result.catch(err => this.logger.error('Error connecting:', err));
-            }
-        } catch(err: any) {
-            this.logger.error('Error connecting:', err)
-        }
-
-        return true;
-
-        // connector.invoke('connect', [ connConfig ]).then(connection: DeviceConnection => {
-        //     this._connection = connection;
-
-        //     // Add event listeners
-        //     connection.on('open', () => this.logger.debug('Connection was opened.'));
-        //     connection.on('close', () => this.logger.debug('Connection was closed.'));
-
-        //     // Emit the 'connect' event
-        //     this.emit('connect');
-        // }).catch(err => {
-        //     this.logger.error(err);
-        // });
+        // Create the connection
+        this.logger.debug(`Connected to ${connector}.`);
     }
 }

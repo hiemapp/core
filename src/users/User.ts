@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
 import UserController from './UserController';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
-import { getDir } from '~/utils/paths';
+import { dirs } from '~/utils/paths';
 import Model from '~/lib/Model';
 import type { UserType } from './User.types';
 
@@ -13,10 +13,14 @@ export default class User extends ModelWithProps<UserType> {
         return {
             controller: UserController,
             defaults: {
-                name: 'UNNAMED',
+                name: null,
+                username: 'user',
                 permissions: {},
                 settings: {},
                 password: null
+            },
+            filterProps: {
+                password: false
             }
         }
     }
@@ -31,7 +35,7 @@ export default class User extends ModelWithProps<UserType> {
         } else if(args[0] instanceof Model) {
             const model = args[0];
             const action = args[1];
-            key = `${model.constructor.name}.${model.getId()}.${action}`;
+            key = `${model.constructor.name}.${model.id}.${action}`;
         } else {
             return false;
         }
@@ -52,12 +56,20 @@ export default class User extends ModelWithProps<UserType> {
         return false;
     }
 
+    getName() { 
+        return this.getProp('name'); 
+    }
+    
+    getUsername() { 
+        return this.getProp('username'); 
+    }
+
     getSetting(key: string) {
         return _.get(this.getProps(), `settings.${key}`);
     }
 
     getPicturePath() {
-        const filepath = path.join(getDir('STATIC'), 'users', 'pictures', this.__modelId + '.jpg');
+        const filepath = path.resolve(dirs().STATIC, 'users', 'pictures', this.__modelId + '.jpg');
         if (!fs.existsSync(filepath)) return null;
 
         return filepath;
@@ -81,9 +93,9 @@ export default class User extends ModelWithProps<UserType> {
     verifyPasswordTimeSafe(password: string): Promise<boolean> {
         return new Promise((resolve, reject) => {
             const hash = this.getProp('password');
-
+            
             if (typeof hash !== 'string') {
-                return reject(`${this} has no password set.`);
+                return reject('noPasswordSet');
             }
 
             const [hashedPassword, salt] = hash.split('.');

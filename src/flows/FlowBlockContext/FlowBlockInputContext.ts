@@ -1,22 +1,24 @@
-import type { FlowScriptBlockParameter, FlowScriptBlockStatement } from '~/flows/Flow.types';
-import type { FlowBlockLayoutParameter, FlowBlockLayoutStatement } from '~/flows/FlowBlockLayout.types'
-import type FlowBlockContext from './FlowBlockContext';
+import type { FlowBlockInputDef } from '~/flows/FlowBlockDef.types';
+import type { FlowBlockInputLayout } from '~/flows/FlowBlockLayout.types'
+import EventEmitter from 'events';
+import FlowBlockContext from './FlowBlockContext';
 
-export default abstract class FlowBlockInputContext {
+export default abstract class FlowBlockInputContext<TDef extends FlowBlockInputDef, TLayout extends FlowBlockInputLayout> {
     readonly id: string;
+    readonly events: EventEmitter;
     protected blockCtx: FlowBlockContext;
-    protected abstract layout: FlowBlockLayoutParameter | FlowBlockLayoutStatement;
-    protected abstract def: FlowScriptBlockParameter | FlowScriptBlockStatement;
+    protected def: TDef;
+    protected layout: TLayout;
 
     constructor(
-        id: string, 
-        blockCtx: FlowBlockContext
+        blockCtx: FlowBlockContext,
+        def: TDef,
+        layout: TLayout
     ) {
-        this.id = id;
         this.blockCtx = blockCtx;
-
-        this.init();
+        this.def = def;
+        this.layout = layout;
+        this.id = this.def.id;
+        this.events = new EventEmitter();
     }
-
-    protected abstract init(): void;
 }

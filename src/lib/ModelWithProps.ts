@@ -1,10 +1,11 @@
+import { defaultsDeepNull } from '~/utils/object';
 import Model, { ModelType, ModelConfig } from '../lib/Model';
 import { PromiseAllObject } from '../utils/Promise';
-import _, { split } from 'lodash';
+import _ from 'lodash';
 
 export interface ModelWithPropsType extends ModelType {
     props: {},
-    serializedProps: {},
+    serializedProps: {}
 }
 
 export interface ModelWithPropsConfig<T extends ModelWithPropsType> extends ModelConfig {
@@ -12,7 +13,7 @@ export interface ModelWithPropsConfig<T extends ModelWithPropsType> extends Mode
         [K in keyof T['serializedProps']]?: () => T['serializedProps'][K]
     },
     filterProps?: {
-        [key in keyof T['serializedProps']]?: (boolean | (() => boolean))
+        [key in keyof (T['props'] & T['serializedProps'])]?: (boolean | (() => boolean))
     },
     controller: any;
     defaults: Required<Omit<T['props'], 'id'>>;
@@ -22,23 +23,21 @@ abstract class ModelWithProps<T extends ModelWithPropsType> extends Model<T> {
     protected __modelProps: T['props'] = {} as T['props'];
     protected abstract __modelConfig(): ModelWithPropsConfig<T>;
 
-    constructor(id: T['id'], props: Omit<T['props'], 'id'>) {
+    constructor(id: T['id'], props: Partial<Omit<T['props'], 'id'>>) {
         super(id);
         const config = this.__modelConfig();
 
-        this.__modelProps = _.defaultsDeep(props, config.defaults);
-        
-        this.init();
+        this.__modelProps = defaultsDeepNull(props, config.defaults);
     }
 
-    protected init(): void {};
+    __init(): void | Promise<void> {}
 
     /**
      * Get all properties of the model.
      * @returns A copy of the properties of the model.
      */
-    getProps(): T['props'] {
-        return {...this.__modelProps, id: this.__modelId } as T['props'];
+    getProps(): T['props'] & { id: T['id'] } {
+        return {...this.__modelProps, id: this.__modelId };
     }
 
     async getAllProps() {
@@ -49,10 +48,7 @@ abstract class ModelWithProps<T extends ModelWithPropsType> extends Model<T> {
             return props;
         }
     
-        const dynamicProps = await PromiseAllObject(_.mapValues(config.dynamicProps, (handler, key) => {
-            if(typeof handler !== 'function') return true;
-            return handler();
-        }));
+        const dynamicProps = await PromiseAllObject(_.mapValues(config.dynamicProps, (func, prop) => this.getDynamicProp(prop)));
         
         return { ...props, ...dynamicProps };
     }
@@ -67,6 +63,14 @@ abstract class ModelWithProps<T extends ModelWithPropsType> extends Model<T> {
         return _.get(this.getProps(), keypath);
     }
 
+    isDynamicProp<TKey extends keyof T['serializedProps']>(keypath: TKey): boolean;
+    isDynamicProp(keypath: string): boolean;
+    isDynamicProp(keypath: string) {
+        const key = keypath.split('.')[0] as keyof T['serializedProps']; 
+        const handler = this.__modelConfig().dynamicProps?.[key];
+        return typeof handler === 'function';
+    }
+
     async getDynamicProp<TKey extends keyof T['serializedProps']>(keypath: TKey): Promise<T['serializedProps'][TKey]>;
     async getDynamicProp(keypath: string): Promise<any>;
     async getDynamicProp(keypath: string) {
@@ -78,7 +82,7 @@ abstract class ModelWithProps<T extends ModelWithPropsType> extends Model<T> {
         if(typeof handler !== 'function') return null;
 
         const value = await handler();
-        return _.get(value, rest);
+        return rest ? _.get(value, rest) : value;
     }
 
     /**
@@ -94,8 +98,8 @@ abstract class ModelWithProps<T extends ModelWithPropsType> extends Model<T> {
 
         // Update the controller
         const controller = this.__modelConfig().controller;
-        if (this.getId() && typeof controller.update === 'function') {
-            controller.update(this.getId(), this);
+        if (this.id && typeof controller?.update === 'function') {
+            controller.update(this.id, this);
         }
 
         return this;
@@ -103,10 +107,6 @@ abstract class ModelWithProps<T extends ModelWithPropsType> extends Model<T> {
 
     toJSON() {
         return this.getProps();
-    }
-
-    async serialize() {
-        return await this.getAllProps();
     }
 }
 

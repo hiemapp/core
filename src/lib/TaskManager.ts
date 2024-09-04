@@ -1,9 +1,5 @@
 import Taskrunner, { type Task } from './Taskrunner';
 
-export interface TaskManagerOptions {
-    meta?: any;
-}
-
 export interface TaskManagerListener<TData = any> {
     keyword: string,
     callback: (task: Task<TData>) => unknown
@@ -11,12 +7,10 @@ export interface TaskManagerListener<TData = any> {
 
 export default class TaskManager {
     public readonly id;
-    public readonly options;
     public readonly handlers: TaskManagerListener[] = []; 
 
-    constructor(id: string, options: TaskManagerOptions = {}) {
+    constructor(id: string) {
         this.id = id;
-        this.options = options;
 
         if(Taskrunner.managers[id]) {
             throw new Error(`TaskManager '${id}' already exists.`);
@@ -54,8 +48,8 @@ export default class TaskManager {
     }
 
     async deleteAllTasks() {
-        await Promise.all(Taskrunner.index().map(task => {
-            if(task.meta?.manager?.id === this.id) {
+        await Promise.all(Taskrunner.listTasks().map(task => {
+            if(task.meta.managerId === this.id) {
                 return Taskrunner.deleteTask(task.uuid);
             }
         }));

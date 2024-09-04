@@ -1,6 +1,10 @@
 import * as _ from 'lodash';
 import Logger, { logger } from './Logger';
-import ModelEvent, { ModelEventData, type ModelEventCallback } from './ModelEvent';
+import ModelEvent from './ModelEvent';
+
+export type InferModelType<TModel> = TModel extends Model<infer T> ? T : never;
+export type EventName<TModel> = keyof InferModelType<TModel>['events'] & string;
+export type EventData<TModel, TEventName extends keyof InferModelType<TModel>['events']> = InferModelType<TModel>['events'][TEventName];
 
 export interface ModelConfig {
     maxListeners?: number;
@@ -8,45 +12,61 @@ export interface ModelConfig {
 
 export interface ModelType {
     id: string | number;
-    events: Record<string, { data?: any }>
+    events: {}
+}
+
+export interface ModelEventListener {
+    callback: ((data: any) => unknown);
+    options?: ModelEventListenerOptions
+}
+
+export interface ModelEventListenerOptions {
+    /** Listeners with the duplicate keys are ignored, and won't be added. */
+    key?: any
 }
 
 abstract class Model<T extends ModelType> {
     protected __modelId: T['id'];
     protected __modelConfig(): ModelConfig { return {}; };
 
-    private __eventListeners: Record<string, ModelEventCallback[] | undefined> = {};
+    private __eventListeners: Record<string, ModelEventListener[] | undefined> = {};
+    get id() { return this.__modelId };
 
     logger: Logger;
 
     constructor(id: T['id']) {
         this.__modelId = id;
         this.logger = logger.child({ label: this.toString() });
-
-        const config = this.__modelConfig();
     }
 
-    /**
-     * Add an event listener.
-     * @param eventName The name of the event to listen for.
-     * @param listener The listener.
-     */
+    once<TEventName extends keyof T['events'] & string>(eventName: TEventName, callback: (data: T['events'][TEventName]) => unknown, options?: ModelEventListenerOptions) {
+        const wrapper = (data: any) => {
+            this.off(eventName, wrapper);
+            callback(data);
+        }
+        
+        this.on(eventName, wrapper, options);
+    }
 
-    on<TEventName extends Extract<keyof T['events'], string>>(eventName: TEventName, listener: ModelEventCallback<T['events'][TEventName]['data']>) {
+    on<TEventName extends keyof T['events'] & string>(eventName: TEventName, callback: (data: T['events'][TEventName]) => unknown, options?: ModelEventListenerOptions): boolean {
         this.__eventListeners[eventName] ??= [];
-        this.__eventListeners[eventName]!.push(listener);
+
+        // Compare the key of the new listener with that of the existing listeners. If
+        // a listener with the same key already exists, then don't add the new listener.
+        if(typeof options?.key !== 'undefined') {
+            if(this.__eventListeners[eventName]!.some(l => l.options?.key === options?.key)) {
+                return false;
+            }
+        }
+
+        this.__eventListeners[eventName]!.push({ callback, options });
+        return true;
     }
     
-    /**
-     * Remove an event listener.
-     * @param eventName The name of the event that is being listened for.
-     * @param listener The listener.
-     * @returns Whether the listener was found.
-     */
-    off<TEventName extends Extract<keyof T['events'], string>>(eventName: TEventName, listener: ModelEventCallback<T['events'][TEventName]['data']>) {
+    off<TEventName extends keyof T['events'] & string>(eventName: TEventName, callback: (data: T['events'][TEventName]) => unknown) {
         if(this.__eventListeners[eventName]) {
             const oldLength = this.__eventListeners[eventName]!.length;
-            this.__eventListeners[eventName] = this.__eventListeners[eventName]!.filter(listener2 => listener2 !== listener);
+            this.__eventListeners[eventName] = this.__eventListeners[eventName]!.filter(l => l.callback !== callback);
             const newLength = this.__eventListeners[eventName]!.length;
             return oldLength !== newLength;
         }
@@ -54,19 +74,13 @@ abstract class Model<T extends ModelType> {
         return false;
     }
 
-    /**
-     * Emits an event.
-     * @param eventName The name of the event to emit.
-     * @param data Data to pass to the listener.
-     * @returns The ModelEvent instance.
-     */
-    emit<TEventName extends Extract<keyof T['events'], string>>(eventName: TEventName, data: T['events'][TEventName]['data']) {
+    emit<TEventName extends keyof T['events'] & string>(eventName: TEventName, data: T['events'][TEventName]) {
         const event = this.createEvent(eventName, data);
         return event.emit();
     }
 
-    protected createEvent<TEventName extends Extract<keyof T['events'], string>>(eventName: TEventName, data?: T['events'][TEventName]['data']) {
-        return new ModelEvent<T['events'][TEventName]>(this, this.__eventListeners[eventName] ?? [], eventName as string, data);
+    protected createEvent<TEventName extends keyof T['events']>(eventName: TEventName, data: T['events'][TEventName]) {
+        return new ModelEvent<T['events'][TEventName] & {}>(this, this.__eventListeners[eventName] ?? [], eventName as string, data as any);
     }
     
     /**
@@ -74,20 +88,14 @@ abstract class Model<T extends ModelType> {
      */
     toString(): string {
         const type = this.constructor.name;
-        const id = this.getId();
-
-        return id ? `[${type} ${id}]` : `[${type}]`;
+        return this.id ? `[${type} ${this.id}]` : `[${type}]`;
     }
 
     /**
      * Convert the model to JSON.
      */
     toJSON(): any {
-        return { id: this.getId() };
-    }
-
-    getId() {
-        return this.__modelId;
+        return { id: this.id };
     }
 }
 

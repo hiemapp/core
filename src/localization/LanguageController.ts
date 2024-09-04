@@ -1,28 +1,27 @@
 import Extension from '../extensions/Extension';
 import ExtensionController from '../extensions/ExtensionController';
 import Controller from '../lib/Controller';
-import LanguageProvider, { LanguageKey } from './LanguageProvider';
+import LanguageMessages, { LANGUAGE_IDS } from './LanguageMessages';
 import Language from './Language';
 import * as _ from 'lodash';
 import Locale from './Language';
-
-const AVAILABLE_LANGUAGES: LanguageKey[] = ['nl-nl', 'en-us'];
 
 export default class LanguageController extends Controller<Language>() {
     static load() {
         let languages: Record<string, Language> = {};
 
-        AVAILABLE_LANGUAGES.forEach((key) => {
-            const language = new Language(key);
+        LANGUAGE_IDS.forEach(id => {
+            const language = new Language(id);
 
-            ExtensionController.index().forEach((extension: Extension) => {
-                const provider = extension.getModuleOrFail(LanguageProvider, key);
-                if (!provider) return true;
+            ExtensionController.index().forEach(ext => {
+                const messages = ext.getModuleOrFail(LanguageMessages, id);
+                if (!messages) return true;
 
-                language.addMessages(provider.manifest.get('messages'), extension.getId());
+                const scope = ext.id;
+                language.addMessages(messages.$module.methods.getMessages(), scope);
             });
 
-            languages[key] = language;
+            languages[id] = language;
         });
 
         this.store(languages);

@@ -1,23 +1,20 @@
-// TODO: add a function to each listener
+import _ from 'lodash';
 import type Model from './Model';
+import type User from '~/users/User';
+import { ModelEventListener } from './Model';
+import FlowBlock from '~/flows/Flow';
 
-export interface CancellableModelEvent {
-    cancel: () => void;
-}
+export interface ModelEventReason { user?: User, flowBlock?: FlowBlock };
 
-export type ModelEventData<TEvent> = Omit<TEvent, keyof CancellableModelEvent>;
-
-export type ModelEventCallback<TData = any> = (data: TData) => unknown;
-
-export default class ModelEvent<TEvent extends {} = {}> {
+export default class ModelEvent<TEventData extends any> {
     protected model;
     protected listeners;
     protected eventName;
-    protected data?;
+    protected data;
 
     public isCanceled: boolean = false;
 
-    constructor(model: Model<any>, listeners: ModelEventCallback[], eventName: string, data?: ModelEventData<TEvent>) {
+    constructor(model: Model<any>, listeners: ModelEventListener[], eventName: string, data: TEventData) {
         this.model = model;
         this.listeners = listeners;
         this.eventName = eventName;
@@ -25,16 +22,11 @@ export default class ModelEvent<TEvent extends {} = {}> {
     }
 
     async emit() {
-        await Promise.all(this.listeners.map((callback, i) => {
-            if(typeof callback !== 'function') return;
-        
-            const data = {
-                ...(this.data ?? {}),
-                cancel: this.cancelHandler.bind(this)
-            }
-
+        await Promise.all(this.listeners.map((listener, i) => {
+            if(typeof listener?.callback !== 'function') return;
+            
             try {
-                return callback(data);
+                return listener.callback(this.data ?? {});
             } catch(err: any) {
                 this.model.logger.error(`Error while emitting event '${this.eventName}':`, err);
             }

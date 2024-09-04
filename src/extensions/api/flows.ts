@@ -1,5 +1,4 @@
-export { type FlowBlockContext, FlowBlock, FlowBlockCategory, FlowController } from '~/flows';
+export { type FlowBlockContext, FlowBlock, FlowBlockCategory, FlowController, FlowBlockLayout } from '~/flows';
 export type { FlowBlockCategoryManifest } from '~/flows/FlowBlockCategory.types';
-export type { FlowBlockManifest } from '~/flows/FlowBlockManifest.types';
+export type { IFlowBlockManifest as FlowBlockManifest } from '~/flows/FlowBlock.types';
 export type { FlowBlockTask } from '~/flows/FlowBlockTask.types'
-export type { FlowBlockLayout } from '~/flows/FlowBlockLayout.types';

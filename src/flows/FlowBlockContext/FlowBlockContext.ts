@@ -1,6 +1,5 @@
-import type { Constructor } from '~types/helpers';
-import type { FlowScriptBlock, FlowBlockCustomTaskData, FlowTaskData  } from '~/flows/Flow.types';
-import type { FlowBlockManifest } from '~/flows/FlowBlockManifest.types'
+import type { FlowBlockDef } from '../FlowBlockDef.types';
+import type { FlowBlockCustomTaskData, IFlowBlockManifest } from '~/flows/FlowBlock.types'
 import FlowBlockStatementContext from './FlowBlockStatementContext';
 import FlowBlockParameterContext from './FlowBlockParameterContext';
 import FlowBlock from '../FlowBlock';
@@ -9,14 +8,17 @@ import FlowContext from '../FlowContext/FlowContext';
 import { PromiseAllObject } from '~/utils/Promise';
 import { ensureFind } from '~/utils/object';
 import Manifest from '~/utils/Manifest';
-import { FlowBlockLayout } from '../FlowBlockLayout.types';
+import { FlowTaskData } from '../Flow.types';
+import FlowBlockLayout from '../FlowBlockLayout';
 import _ from 'lodash';
-import type Model from '~/lib/Model';
-import { ModelEventCallback } from '~/lib/ModelEvent';
+import Model from '~/lib/Model';
+import type { Device } from '~/devices';
+import type { Flow } from '~/flows';
+import type { User } from '~/users';
+import type { Extension } from '~/extensions';
 
 export type FlowblockContextHandlerName = 'CANCEL';
 export type FlowBlockContextFunctionCallback = () => unknown;
-type henk<T> = T extends Model<infer B> ? B : never;
 
 export interface FlowBlockContextTimedTaskEvent {
     keyword: string,
@@ -26,21 +28,27 @@ export interface FlowBlockContextTimedTaskEvent {
 export interface FlowBlockContextListener { 
     model: Model<any>, 
     eventName: string, 
-    callback: ModelEventCallback 
+    callback: (...args: any[]) => unknown; 
+}
+
+export interface FlowBlockParameterValues {
+    DEVICE: Device;
+    FLOW: Flow;
+    USER: User;
+    EXTENSION: Extension;
+    [key: string]: any
 }
 
 export default class FlowBlockContext {
-    public readonly def: FlowScriptBlock;
-    public readonly manifest: Manifest<FlowBlockManifest>;
-    public readonly layout: Manifest<FlowBlockLayout>;
+    public readonly def: FlowBlockDef;
+    public readonly manifest: Manifest<IFlowBlockManifest>;
+    public readonly layout: FlowBlockLayout;
     public readonly flowCtx: FlowContext;
-
-    public isMounted: boolean = false;
 
     protected id: string;
     protected handlers: Record<FlowblockContextHandlerName, FlowBlockContextFunctionCallback | undefined> = {} as any;
-    protected variables: Record<string, any> = {};
-    protected instance: FlowBlock;
+    protected meta: Record<string, any> = {};
+    protected block: FlowBlock;
     protected listeners: FlowBlockContextListener[] = [];
     protected _parameters: Record<string, FlowBlockParameterContext> = {};
     protected _statements: Record<string, FlowBlockStatementContext> = {};
@@ -48,67 +56,84 @@ export default class FlowBlockContext {
     // protected _memo_rootBlock?: FlowBlockContext;
     // protected _memo_getHandler: Record<FlowblockContextHandlerName, FlowBlockContextFunctionCallback | undefined> = {} as any;
 
-    constructor(id: string, flow?: FlowContext) {
+    constructor(id: string, flowCtx?: FlowContext) {
         this.id = id;
 
-        if(!flow) return;
-        this.flowCtx = flow;
+        if(!flowCtx) return;
+        this.flowCtx = flowCtx;
 
-        const def = this.findDef();
-        const type = ExtensionController.findModule(FlowBlock, def.type)
-
-        this.def = def;
-        this.instance = new type();
-        this.manifest = type.manifest;
-        this.layout = new Manifest(type.layout());
+        this.def = this.findDef();
+        this.block = ExtensionController.findModule(FlowBlock, this.def.type)
+        this.manifest = this.block.getManifest();
+        this.layout = this.block.$module.methods.getLayout();
 
         // Create parameter contexts
-        this.def.parameters.forEach(p => {
-            this._parameters[p.id] = new FlowBlockParameterContext(p.id, this);
+        this.layout.getParameters().forEach(layout => {
+            const def = this.def.parameters.find(p => p.id === layout.id);
+            if(!def) throw `Missing parameter '${layout.id}' in definition of block '${this.id}' of type '${this.def.type}'.`;
+            this._parameters[layout.id] = new FlowBlockParameterContext(this, def, layout);
         })
 
         // Create statement contexts
-        this.def.statements.forEach(s => {
-            this._statements[s.id] = new FlowBlockStatementContext(s.id, this);
+        this.layout.getStatements().forEach(layout => {
+            const def = this.def.statements.find(s => s.id === layout.id);
+            if(!def) return;
+            this._statements[layout.id] = new FlowBlockStatementContext(this, def, layout);
         })
 
         // Memoize methods
-        this.rootBlock = _.memoize(this.rootBlock.bind(this));
+        this.parents = _.memoize(this.parents.bind(this));
     }
 
     async execute() {
         try {
-            let result = this.instance.run(this);
+            const startTime = Date.now();
+            let output = this.block.$module.methods.callProvider('run', [ this ]);
 
-            if(result instanceof Promise) {
-                result = await result.catch((err: any) => {
+            if(output instanceof Promise) {
+                output = await output.catch((err: any) => {
                     this.flowCtx.flow.logger.error(`Error running block ${this.def.id}:`, err);
                 });
             }
             
-            this.flowCtx.flow.logger.debug(`Executed ${this.id} (type:${this.def.type}; output: ${result})`);
-            return result;
+            const endTime = Date.now();
+            // this.flowCtx.flow.logger.debug(`Executing block ${this.id}`, { type: this.def.type, output }, 'took', endTime-startTime, 'ms');
+            return output;
         } catch(err: any) {
             this.flowCtx.flow.logger.error(`Error running block ${this.def.id}:`, err);
         }
     }
 
-    hasParent() {
+    hasParent(): this is { parentBlock(): FlowBlockContext }{
         return (typeof this.parentBlock() !== 'undefined');
     }
-
+    
     rootBlock() {
-        let rootBlock = this.parentBlock();
+        const parents = this.parents();
+        return parents[parents.length-1] ?? this;
+    }
 
-        while(rootBlock.hasParent()) {
-            rootBlock = rootBlock.parentBlock();
+    parents() {
+        const parents: FlowBlockContext[] = [];
+        
+        let parentBlock = this.parentBlock();
+        while(parentBlock) {
+            parents.push(parentBlock);
+
+            if(!parentBlock.hasParent()) break;
+            parentBlock = parentBlock.parentBlock();
         }
 
-        return rootBlock;
+        return parents;
     }
 
     parentBlock() {
-        return this.flowCtx.findBlock(this.def.parent.id);
+        if(!this.def.parent.id) return null;
+        return this.flowCtx.getBlock(this.def.parent.id);
+    }
+
+    flow() {
+        return this.flowCtx;
     }
 
     index(): number {
@@ -123,7 +148,7 @@ export default class FlowBlockContext {
         return Object.values(this._parameters);
     }
 
-    async allParameterValues(): Promise<Record<string, any>> {
+    async allParameterValues(): Promise<FlowBlockParameterValues> {
         const promises: Record<string, any> = {};
 
         this.parameters().forEach(p => {
@@ -137,8 +162,8 @@ export default class FlowBlockContext {
         return ensureFind(this.parentBlock()!.statements(), s => s.blocks().includes(this));
     }
 
-    listen<TModel extends Model<any>, TEventName extends Parameters<TModel['on']>[0]>(model: TModel, eventName: TEventName, callback: ModelEventCallback<any>) {
-        model.on(eventName, callback);
+    addListener<TModel extends Model<any>>(model: TModel, eventName: string, callback: (data: any) => unknown) {
+        model.on(eventName as any, callback);
         this.listeners.push({ model, eventName, callback });
     }
 
@@ -179,7 +204,7 @@ export default class FlowBlockContext {
 
     getHandler(name: FlowblockContextHandlerName): FlowBlockContextFunctionCallback | undefined {
         let handler: FlowBlockContextFunctionCallback | undefined;
-        let currentBlock: FlowBlockContext = this;
+        let currentBlock: FlowBlockContext|null = this;
 
         while(currentBlock && typeof handler !== 'function') {
             handler = currentBlock.handlers[name];
@@ -189,24 +214,16 @@ export default class FlowBlockContext {
         return handler;
     }
 
-    setVariable(name: string, value: any) {
-        this.variables[name] = value;
+    setMeta(keypath: string, value: any) {
+        return _.set(this.meta, keypath, value);
     }
 
-    getVariable(name: string) {
-        let value;
-        let currentBlock: FlowBlockContext = this;
-
-        while(currentBlock && typeof value !== 'function') {
-            value = currentBlock.variables[name];
-            currentBlock = currentBlock.parentBlock();
-        }
-
-        return value;
+    getMeta(keypath: string) {
+        return _.get(this.meta, keypath);
     }
 
     addTimedTask<TData = any>(date: Date, keyword: string, data?: TData) {
-        this.flowCtx.taskManager.addTimedTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', date, {
+        this.flowCtx.flow.taskManager.addTimedTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', date, {
             taskType: 'CUSTOM',
             originalKeyword: keyword,
             originalData: data,
@@ -215,7 +232,7 @@ export default class FlowBlockContext {
     }
 
     addDelayedTask<TData = any>(msDelay: number, keyword: string, data?: TData) {
-        this.flowCtx.taskManager.addDelayedTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', msDelay, {
+        this.flowCtx.flow.taskManager.addDelayedTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', msDelay, {
             taskType: 'CUSTOM',
             originalKeyword: keyword,
             originalData: data,
@@ -224,7 +241,7 @@ export default class FlowBlockContext {
     }
 
     addRepeatingTask<TData = any>(interval: string, keyword: string, data?: TData) {
-        this.flowCtx.taskManager.addRepeatingTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', interval, {
+        this.flowCtx.flow.taskManager.addRepeatingTask<FlowBlockCustomTaskData<TData>>('FLOW_TASK', interval, {
             taskType: 'CUSTOM',
             originalKeyword: keyword,
             originalData: data,
@@ -232,24 +249,24 @@ export default class FlowBlockContext {
         })
     }
 
+    load() {
+        return this.block.emit('load', this);
+    }
+
     mount() {
-        this.isMounted = true;
-        this.instance.mount(this);
+        return this.block.emit('mount', this);
     }
 
-    unmount() {
-        console.log(this.listeners);
-        this.listeners.forEach(({ model, eventName, callback }, i) => {
+    unload() {
+        this.listeners.forEach(({ model, eventName, callback }) => {
             model.off(eventName, callback);
-            delete this.listeners[i];
-        });
+        })
 
-        this.isMounted = false;
-        this.instance.unmount(this);
+        return this.block.emit('unload', this);
     }
 
-    protected findDef(): FlowScriptBlock {
-        const def = this.flowCtx.script.blocks.find(b => b.id === this.id);
+    protected findDef(): FlowBlockDef {
+        const def = this.flowCtx.def.blocks.find(b => b.id === this.id);
 
         if(!def) {
             throw new Error(`Definition for block '${this.id}' not found.`);
@@ -264,7 +281,7 @@ export default class FlowBlockContext {
                 type: this.def.type,
                 id: this.def.id
             },
-            flowId: this.flowCtx.flow.getId() 
+            flowId: this.flowCtx.flow.id 
         }
     }
 }

@@ -1,46 +1,61 @@
-import { ExtensionModuleFactory, ExtensionModuleConfig } from '../extensions/ExtensionModule';
-import type { FlowBlockManifest } from './FlowBlockManifest.types';
-import type { FlowBlockLayout } from './FlowBlockLayout.types';
+import ExtensionModule, { ExtensionModuleConfig, TExtensionModule, ExtensionModuleProvider, ExtensionModuleProviderFunction } from '../extensions/ExtensionModule';
+import type { IFlowBlockManifest } from './FlowBlock.types';
+import type { IFlowBlockLayout, IFlowBlockLayout_parameter } from './FlowBlockLayout.types';
 import type { FlowBlockTask } from './FlowBlockTask.types';
 import type FlowBlockContext from './FlowBlockContext/FlowBlockContext';
+import ModelWithProps from '~/lib/ModelWithProps';
+import FlowBlockLayout from './FlowBlockLayout';
 
-export default class FlowBlock extends ExtensionModuleFactory<FlowBlockManifest>(){
-    private static __layoutProvider: () => FlowBlockLayout = () => { return {}; };
+export interface TFlowBlock extends TExtensionModule {
+    providers: TExtensionModule['providers'] & {
+        manifest: () => IFlowBlockManifest
+        layout: () => IFlowBlockLayout
+        run: (block: FlowBlockContext) => unknown
+    },
+    methods: {
+        getLayout: () => FlowBlockLayout
+    },
+    events: {
+        'load': [ FlowBlockContext ],
+        'unload': [ FlowBlockContext ],
+        'mount': [ FlowBlockContext ],
+        'task': [ FlowBlockContext, FlowBlockTask ]
+    }
+}
 
-    static extensionModuleConfig: ExtensionModuleConfig = {
-        manifestRequired: true
+export default class FlowBlock<TData extends {} = {}> extends ExtensionModule<TFlowBlock, TData> {
+    protected _init() {
+        this.$module.methods.getLayout = this._getLayout.bind(this);
     }
 
-    static defineLayoutProvider(layoutProvider: () => FlowBlockLayout) {
-        this.__layoutProvider = layoutProvider;
+    set run(run: ExtensionModuleProviderFunction<TFlowBlock, 'run'>) {
+        this._registerProvider('run', run);
     }
 
-    async run(ctx: FlowBlockContext): Promise<any> {
-        return;
+    setManifest(manifest: ExtensionModuleProvider<TFlowBlock, 'manifest'>) {
+        return this._registerProvider('manifest', manifest);
     }
 
-    async mount(ctx: FlowBlockContext): Promise<void> {
-        return;
+    setLayout(layout: ExtensionModuleProvider<TFlowBlock, 'layout'>) {
+        this._registerProvider('layout', layout);
     }
 
-    async unmount(ctx: FlowBlockContext): Promise<void> {
-        return;
-    }
+    static serializeParameterLayout(param: IFlowBlockLayout_parameter) {
+        if(Array.isArray(param?.options)) {
+            param.options = param.options.map(opt => {
+                if(opt instanceof ModelWithProps) {
+                    return { label: opt.getProp('name'), value: opt.id }
+                }
 
-    handleTask(task: FlowBlockTask, ctx: FlowBlockContext): void {
-        return;
-    }
-
-    static validate(): void {
-        super.validate();
-
-        if(!this.__layoutProvider) {
-            throw new Error('No layoutProvider was defined.');
+                return opt;
+            })
         }
+
+        return param;
     }
 
-    
-    static layout() {
-        return this.__layoutProvider();
+    protected _getLayout() {
+        const json = this.$module.methods.callProvider('layout', []);
+        return new FlowBlockLayout(json);
     }
 }

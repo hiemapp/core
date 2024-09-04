@@ -1,10 +1,10 @@
-import * as uuidLib from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 /** 
  * Generates a v4 Uuid without dashes. 
  */
 function uuid(): string {
-    return uuidLib.v4().replaceAll('-', '');
+    return uuidv4().replaceAll('-', '');
 }
 
 function JSONParseOrFail(string: string, fallback: any = {}) {

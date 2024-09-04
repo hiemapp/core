@@ -42,16 +42,16 @@ export default class Logger {
         const errors: Error[] = [];
 
         // Time
-        const time = this.getTimeString();
-        prefix.push(time);
+        const formattedTime = this.getTimeString();
+        prefix.push(formattedTime);
 
         // Label
-        const label = _.trimEnd(_.trimStart(options.label, '['), ']');
-        prefix.push('['+label+']');
+        const formattedLabel = _.trimEnd(_.trimStart(options.label, '['), ']');
+        prefix.push('['+formattedLabel+']');
 
         // Level
-        const level = this.colors[options.level!](options.level!);
-        prefix.push(level+':');
+        const formattedLevel = this.colors[options.level!](options.level!);
+        prefix.push(formattedLevel+':');
 
         const args = [ prefix.join(' ') ];
 

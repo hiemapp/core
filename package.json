@@ -1,36 +1,48 @@
 {
-  "name": "zylax",
+  "name": "hiem",
   "version": "1.0.0",
-  "main": "./dist/index.js",
+  "main": "./src/index.ts",
   "types": "./dist/index.d.ts",
+  "mains": {
+    "development": "./src/index.ts",
+    "production": "./dist/index.js"
+  },
   "license": "MIT",
   "scripts": {
     "build": "tsc && tsconfig-replace-paths"
   },
   "dependencies": {
+    "base64url": "^3.0.1",
     "cron-parser": "^4.9.0",
+    "crypto-random-string": "^5.0.0",
     "dayjs": "^1.11.7",
+    "downsample": "^1.4.0",
+    "express": "^4.19.2",
     "glob": "^10.2.6",
-    "isolated-vm": "^4.6.0",
     "kolorist": "^1.8.0",
     "lodash": "^4.17.21",
-    "mysql2": "^3.3.3",
+    "mysql2": "^3.9.2",
+    "nunjucks": "^3.2.4",
+    "radix-64": "^1.0.4",
     "randomstring": "^1.2.3",
-    "socket.io": "^4.6.1",
+    "react-serialize": "^0.2.1",
+    "sanitize-filename": "^1.6.3",
     "stacktrace-js": "^2.0.2",
     "uuid": "^9.0.0",
-    "vite": "^4.4.9"
+    "vite": "^5.2.6"
   },
   "devDependencies": {
-    "@types/express": "^4.17.17",
+    "@types/express": "^4.17.21",
     "@types/glob": "^8.1.0",
-    "@types/lodash": "^4.14.195",
+    "@types/lodash": "^4.17.0",
     "@types/minimatch": "^5.1.2",
-    "@types/node": "^20.2.5",
-    "@types/randomstring": "^1.1.8",
-    "@types/uuid": "^9.0.1",
+    "@types/node": "^20.11.30",
+    "@types/randomstring": "^1.1.12",
+    "@types/react": "^18.2.70",
+    "@types/socket.io": "^3.0.2",
+    "@types/uuid": "^9.0.8",
     "tsconfig-replace-paths": "^0.0.14",
-    "typescript": "^5.2.2",
-    "vite-plugin-dts": "^3.5.3"
+    "typescript": "^5.4.3",
+    "vite-plugin-dts": "^3.7.3"
   }
 }

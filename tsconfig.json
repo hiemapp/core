@@ -1,6 +1,5 @@
 {
     "include": ["src/", "@types/"],
-    "exclude": ["**/ui/components/**.ts"],
     "compilerOptions": {
         "typeRoots": [
             "node_modules/@types/",
@@ -14,13 +13,13 @@
         "module": "commonjs",
         "strict": true,
         "declaration": true,
+        "jsx": "react",
+        "jsxFactory": "zylax.ui.jsx.h",
         "strictPropertyInitialization": false,
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "baseUrl": "./",
-        "jsx": "react",
-        "jsxFactory": "jsx.h",
         "paths": {
             "~/*": ["src/*"],
             "~types/*": ["@types/*"],

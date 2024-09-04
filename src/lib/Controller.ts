@@ -6,7 +6,7 @@ export type FilterPredicate<TModel> = (model: TModel) => boolean | string | numb
 export type ControllerType = ReturnType<typeof Controller>;
 
 export default function Controller<TModel extends Model<any>>() {
-    type TId = ReturnType<TModel['getId']>;
+    type TId = ReturnType<TModel['id']>;
     
     abstract class Controller {
         static data: Record<TId, TModel>;
@@ -20,7 +20,11 @@ export default function Controller<TModel extends Model<any>>() {
         }
 
         static find(id: TId): TModel {
-            return this.indexObject()[id];
+            const model = this.indexObject()[id];
+            if(!(model instanceof Model)) {
+                throw new Error(`Cannot find model '${id}'.`);
+            }
+            return model;
         }
 
         static findBy(propKey: string, propValue: any): TModel;

@@ -1,1 +1,1 @@
-export { Record } from '~/records';
+export { MutableRecord, ImmutableRecord } from '~/records';

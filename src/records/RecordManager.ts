@@ -1,195 +1,235 @@
-import { getDir } from '../utils/paths';
+import { dirs } from '../utils/paths';
 import type Device from '../devices/Device';
-import Record, { SerializedRecord } from './Record';
 import path from 'path';
 import dayjs from 'dayjs';
-import ImmutableRecord from './ImmutableRecord';
-import { glob } from 'glob';
 import fs from 'fs/promises';
+import ImmutableRecord from './ImmutableRecord';
 import _ from 'lodash';
-import randomstring from 'randomstring';
-import Manifest from '../utils/Manifest';
-import { JSONParseOrFail } from '../utils/string';
-import { PromiseAllSettledObject } from '../utils/Promise';
+import MutableRecord from './MutableRecord';
+import { EOL } from 'os';
+import { isValidDate } from '~/utils/date';
+import Manifest from '~/utils/Manifest';
+import { glob } from 'glob';
+import RecordSet from './RecordSet';
+import { CustomError } from '~/errors';
 
-export interface Field {
+export interface RecordManagerField {
+    name: string;
+    id: number;
     alias: string;
 }
 
-export interface RecordManagerConfig {
-    fields: {
-        [key: string]: Field;
-    };
+export type RecordManagerSortMode = 'TIME_DESCENDING' | 'TIME_ASCENDING';
+export type RecordManagerSortFunction = (a: ImmutableRecord | MutableRecord, b: ImmutableRecord | MutableRecord) => boolean;
+
+const MEMORY_FLUSH_COOLDOWN_MILLIS = 100;
+const MEMORY_FLUSH_MIN_LENGTH = 10;
+
+const SORT_FUNCTIONS: Record<RecordManagerSortMode, RecordManagerSortFunction> = {
+    TIME_ASCENDING: (a, b) => a.getDate().getTime() < b.getDate().getTime(),
+    TIME_DESCENDING: (a, b) => a.getDate().getTime() > b.getDate().getTime()
+}
+
+export interface RecordIndex {
+    files: {
+        [key: string]: {
+            name: string;
+            start: Date;
+            end: Date;
+            length: number;
+        }
+    }
 }
 
 export default class RecordManager {
     private device: Device;
-    private dir: string;
-    private latestRecord: ImmutableRecord;
-    public config: Manifest<RecordManagerConfig>;
-    private recordsInMemory: ImmutableRecord[] = [];
+    private baseDir: string;
+
+    private memory: ImmutableRecord[] = [];
+    protected index: Manifest<RecordIndex>;
+    public fields: RecordManagerField[] = [];
+
+    protected __flushTimeoutId: NodeJS.Timeout;
+    protected latestRecord: ImmutableRecord;
 
     constructor(device: Device) {
         this.device = device;
-        this.dir = path.join(getDir('STORAGE'), 'devices', this.device.getId().toString(), 'records');
+        this.baseDir = path.resolve(dirs().STORAGE, 'devices', this.device.id.toString(), 'recording');
+    }
 
-        this.loadConfig().then((config) => {
-            this.config = config;
-        });
+    async init() {
+        if (!this.device.getOption('recording.enabled')) return;
+
+        this.init_loadFields();
+        await this.init_loadIndex();
+        await this.init_makeDirs().catch(() => null)
+        await this.init_checkFileIndex();
     }
 
     /**
      * Store a new record.
      * @param recording - The record to store.
      */
-    push(record: Record) {
+    add(record: ImmutableRecord | MutableRecord, checkInterval: boolean = false) {
         try {
-            // Check if the record config has to be loaded
-            if (!this.config) {
-                throw new Error('Recording config not loaded.');
-            }
-
             // Device option 'recording.enabled' has to be true
             if (this.device.getOption('recording.enabled') !== true) {
                 return;
             }
 
-            // If device option 'recording.cooldown' is more than or equal to 1,
-            // check if the new record was performed at least 'recording.cooldown' after
-            // the latest record. If it does not, return.
-            const cooldownSeconds = this.device.getOption('recording.cooldown');
-            if (cooldownSeconds > 0) {
-                if (this.latestRecord?.date) {
-                    const diffSeconds = Math.round((record.date.getTime() - this.latestRecord.date.getTime()) / 1000);
-                    if (diffSeconds < cooldownSeconds) {
-                        this.device.logger.debug(
-                            `Discarding new record because the 'recording.cooldown' option of ${cooldownSeconds}s is not met. (${diffSeconds}s).`,
-                        );
-                        return;
-                    }
-                }
+            // If device option 'recording.interval' is greater than 0, check if the new 
+            // record was performed at least 'recording.interval' after the latest record. 
+            const intervalSeconds = this.device.getOption('recording.interval');
+            if (intervalSeconds > 0 && this.latestRecord) {
+                const diffMillis = record.getDate().getTime() - this.latestRecord.getDate().getTime();
+
+                // Discard the record if the difference is less than the interval
+                if (diffMillis < intervalSeconds * 1000) return;
             }
 
             this.store(record);
         } catch (err: any) {
-            this.device.logger.error(`An error occured while storing a new record: ${err.message}.`);
+            this.device.logger.error(`An error occured while storing ${record}: ${err.message}.`);
         }
     }
 
-    /**
-     * Read the latest n records.
-     * @param top - The number of records to read
-     * @returns The found records.
-     */
-    async readTop(top: number = 50) {
-        let records: ImmutableRecord[] = [];
+    async updateFileIndex(date: Date | string | number) {
+        const filepath = this.getFilepath(date);
+        const filename = path.parse(filepath).name;
+        const records = this.sort(await this.readFile(date, false), 'TIME_ASCENDING');
+        if (records.length === 0) return;
 
-        const dates = await this.listDates(true);
+        this.index.set(`files.${filename}`, {
+            name: filename,
+            start: records[0].getDate().toString(),
+            end: records[records.length - 1].getDate().toString(),
+            length: records.length
+        })
+    }
 
-        for (const date of dates) {
-            if (records.length >= top) break;
+    getFileIndex(doSort: boolean = false) {
+        // Read file index
+        const fileIndex = Object.values(this.index.get('files') ?? {});
 
-            const recordsForDate = await this.readFile(date);
-            records = records.concat(recordsForDate);
+        // Create date objects
+        let hydratedFileIndex = fileIndex.map(file => ({
+            ...file,
+            start: new Date(file.start),
+            end: new Date(file.end)
+        }));
+
+        // Sort file index
+        if (doSort) {
+            hydratedFileIndex = _.sortBy(hydratedFileIndex, file => 1/file.start.getTime());
         }
 
-        // Append the records stored in memory. They might be of an
-        // earlier date, so we add them after top has been reached
-        records = records.concat(this.recordsInMemory);
-
-        return this.sortRecords(records).slice(-top);
+        return hydratedFileIndex;
     }
 
-    async readPeriod(from: Date, to: Date) {
-        const daysDiff = dayjs(from).diff(to, 'day');
+    async readLatest(top: number, skip: number = 0, doAliasRemap: boolean = true) {
+        const sortedFileIndex = this.getFileIndex(true);
+        const filenames = [];
 
-        let records: SerializedRecord[] = [];
+        let totalLength = 0;
+        let startSliceIndex = skip;
+        for (const file of sortedFileIndex) {
+            totalLength += file.length;
+            if(totalLength < skip) {
+                startSliceIndex -= file.length;
+                continue;
+            }
 
-        let currentDate = new Date();
-        Promise.allSettled(
-            _.map([...new Array(daysDiff)], () => {
-                currentDate = dayjs(currentDate).add(1, 'day').toDate();
-                return this.readFile(currentDate);
-            }),
-        ).then((results) => {
-            // TODO: implement
-            // console.log(results);
-        });
+            filenames.push(file.name);
+            if (totalLength >= skip+top) break;
+        }
 
-        return records;
+        const records = this.sort(await this.readFiles(filenames, doAliasRemap), 'TIME_DESCENDING');
+        const slicedRecords = records.slice(startSliceIndex, top-skip);
+
+        return new RecordSet(slicedRecords);
     }
 
-    readFile(date: Date | number | string) {
+    readFiles(dates: (Date|string|number)[], doAliasRemap: boolean = true) {
+        return new Promise<ImmutableRecord[]>((resolve, reject) => {
+            const promises = dates.map(date => this.readFile(date, doAliasRemap));
+            
+            const allRecords: ImmutableRecord[] = [];
+            Promise.allSettled(promises).then(results => {
+                results.forEach(result => {
+                    if (result.status !== 'fulfilled') return;
+                    allRecords.push(...result.value);
+                })
+
+                return resolve(allRecords);
+            })
+        })
+    }
+
+    async readPeriod(start: Date, end: Date, convertAliases: boolean = true) {
+        if (!isValidDate(start)) {
+            throw new CustomError({
+                message: `Invalid start date: ${start}`,
+                status: 400
+            })
+        }
+
+        if (!isValidDate(end)) {
+            throw new CustomError({
+                message: `Invalid end date: ${end}`,
+                status: 400
+            })
+        }
+
+        // Make sure that 'start' and 'end' are in the right order.
+        [start, end] = start.getTime() <= end.getTime() ? [start, end] : [end, start];
+
+        const dateDiff = dayjs(end).diff(start, 'day');
+        const dates = _.times(dateDiff + 1, i => dayjs(start).add(i, 'day').toDate());
+        const records = await this.readFiles(dates, convertAliases);
+
+        const filteredRecords = records.filter(r => r.getDate().getTime() >= start.getTime() && r.getDate().getTime() <= end.getTime());
+        return new RecordSet(filteredRecords);
+    }
+
+    sort(records: (ImmutableRecord | MutableRecord)[], mode: RecordManagerSortMode) {
+        return records.sort((a, b) => SORT_FUNCTIONS[mode](a, b) ? -1 : 1);
+    }
+
+    async readFile(date: Date | number | string, doAliasRemap: boolean = true) {
         return new Promise<ImmutableRecord[]>((resolve, reject) => {
             const filepath = this.getFilepath(date);
-            fs.readFile(filepath, 'utf8')
-                .then((json) => {
-                    const records: SerializedRecord[] = JSONParseOrFail(json);
-                    const immutableRecords = records.map(r => new ImmutableRecord(r));
-                    return resolve(immutableRecords);
+            fs.readFile(filepath, 'utf8').then(content => {
+                const records: ImmutableRecord[] = [];
+
+                const lines = content.split(/\r?\n/);
+                lines.forEach(line => {
+                    const record = ImmutableRecord.decompress(line, this, doAliasRemap);
+                    if(record.isValid()) {
+                        records.push(record);
+                    }
                 })
-                .catch(reject);
-        });
+
+                // Append records from memory if the date matches
+                this.memory.forEach(record => {
+                    if(dayjs(date).isSame(record.getDate(), 'day')) {
+                        records.push(record);
+                    }
+                })
+
+                return resolve(records);    
+            }).catch(err => {
+                if(err.code !== 'ENOENT') {
+                    this.device.logger.error(err);
+                }
+                
+                return resolve([]);
+            })
+        })
     }
 
-    writeFile(date: Date | number | string, records: SerializedRecord[]) {
-        return new Promise<void>((resolve, reject) => {
-            const filepath = this.getFilepath(date);
-            fs.writeFile(filepath, JSON.stringify(records));
-        });
-    }
-
-    /**
-     * Generate a new unique alias.
-     */
-    generateUniqueFieldAlias() {
-        let alias: string | false = false;
-
-        const fields = this.config.get('fields');
-
-        // Generate a new alias (try again if the generated alias is already in use)
-        while (!alias || _.some(fields, (f: Field) => f.alias === alias)) {
-            alias = randomstring.generate(2);
-        }
-
-        return alias;
-    }
-
-    storeFieldAlias(field: string, alias: string) {
-        this.config.set(`fields.${field}.alias`, alias);
-    }
-
-    /**
-     * Get a list of dates for which records exist. Useful in combination with this.readFile().
-     * @param sort - Whether the dates should be sorted.
-     * @returns The list of dates.
-     */
-    private async listDates(sort: boolean = false): Promise<Date[]> {
-        // Replace all backslashes with forward slashes
-        const pattern = path.join(this.dir, 'by-date', '*.json').replace(/\\/g, '/');
-        const filepaths = await glob(pattern, { absolute: true });
-        let dates = filepaths.map((filepath) => new Date(path.parse(filepath).name));
-
-        if (sort) {
-            dates = dates.sort((a, b) => (a.getTime() < b.getTime() ? 1 : -1));
-        }
-
-        return dates;
-    }
-
-    private getFilepath(date: number | Date | string) {
-        let dateString = dayjs(date).format('YYYY-MM-DD');
-        const filepath = path.join(this.dir, 'by-date', path.basename(dateString) + '.json');
-        return filepath;
-    }
-
-    /**
-     * Sort records from newest to oldest.
-     * @param records - The records to sort.
-     * @returns The sorted records.
-     */
-    private sortRecords(records: ImmutableRecord[]) {
-        return records.sort((a, b) => (a.time! < b.time! ? 1 : -1));
+    protected getFilepath(date: number | Date | string) {
+        const filename = dayjs(date).format('YYYY-MM-DD');
+        return this.resolvePath('./records', filename + '.csv');
     }
 
     // private downsampleRecords(records: SerializedRecord[], target: number) {
@@ -217,73 +257,95 @@ export default class RecordManager {
     //     return this.c
     // }
 
-    private async loadConfig() {
-        const filepath = path.join(this.dir, 'config.json');
-        return await Manifest.fromFile<RecordManagerConfig>(filepath);
+    protected init_loadFields() {
+        const driverManifest = this.device.driver.getManifest(this.device);
+        const fields = driverManifest.getArr('device.recording.fields');
+
+        this.fields = [];
+        fields.forEach((field: any) => {
+            this.fields.push({
+                name: field.name,
+                id: field.id,
+                alias: String.fromCharCode(field.id+65)
+            })
+        })
     }
 
-    private store(recording: Record) {
-        if (!(recording instanceof Record)) return;
+    protected async init_loadIndex() {
+        const indexFilepath = this.resolvePath('./index.json');
+        this.index = await Manifest.fromFile(indexFilepath);
+    }
 
-        // Add the recording to memory.
-        this.recordsInMemory.push(recording.toImmutable(this));
-        this.device.logger.debug(`Stored ${recording} in memory.`);
+    protected async init_makeDirs() {
+        await fs.mkdir(this.resolvePath('./records'));
+    }
 
-        // Find the latest recording.
-        this.latestRecord = _.maxBy(this.recordsInMemory, (r) => r.date.getTime())!;
+    protected async init_checkFileIndex() {
+        const pattern = this.resolvePath('./records/*.csv').replaceAll('\\', '/');
+        const filepaths = await glob.glob(pattern);
+        for(const filepath of filepaths) {
+            const filename = path.parse(filepath).name;
+            await this.updateFileIndex(filename);
+        }
+        // console.log(this.getFileIndex());
+    }
 
-        // Store the records in the file system and flush the
-        // recording memory if the interval has been reached.
-        const flushThreshold = this.device.getOption('recording.flushThreshold');
-        if (this.recordsInMemory.length >= flushThreshold) {
-            this.storeInFileSystem(this.recordsInMemory).then((length) => {
-                this.device.logger.debug(`Flushed ${length} recording(s) to the file system.`);
-            });
+    protected resolvePath(...paths: string[]) {
+        return path.resolve(this.baseDir, ...paths);
+    }
 
-            // Clear the memory
-            this.recordsInMemory = [];
+    private store(record: ImmutableRecord | MutableRecord) {
+        // Convert record to immutable
+        if (record instanceof MutableRecord) {
+            record = record.toImmutable();
+        }
+
+        // this.device.logger.debug(`Storing ${record} in memory.`);
+
+        this.memory.push(record);
+        this.latestRecord = record;
+
+        // Reset the timeout
+        if (this.memory.length >= MEMORY_FLUSH_MIN_LENGTH) {
+            clearTimeout(this.__flushTimeoutId);
+
+            this.__flushTimeoutId = setTimeout(() => {
+                this.flushMemory();
+            }, MEMORY_FLUSH_COOLDOWN_MILLIS);
         }
     }
 
-    private storeInFileSystem(records: ImmutableRecord[]) {
-        return new Promise<number>(async (resolve, reject) => {
-            try {
-                // The directory in which the records are stored.
-                const dir = path.join(this.dir, 'by-date');
+    protected async flushMemory() {
+        const handles: Record<string, fs.FileHandle> = {};
 
-                // Create diretory if it doesn't exist.
-                await fs.access(dir).catch(() => fs.mkdir(dir, { recursive: true }));
+        // Copy and empty the memory
+        const memoryCopy = [...this.memory];
+        this.memory = [];
 
-                // Subdivide records by date.
-                const recordsByDate: {[key: string]: ImmutableRecord[]} = {};
-                records.forEach((recording) => {
-                    const formattedDate = dayjs(recording.date).format('YYYY-MM-DD');
-                    recordsByDate[formattedDate] = recordsByDate[formattedDate] ?? [];
-                    recordsByDate[formattedDate].push(recording);
-                });
+        this.device.logger.debug(`Flushing ${memoryCopy.length} record(s) stored in memory to disk.`);
 
-                // Read the existing records from the files.
-                const results = await PromiseAllSettledObject(
-                    _.mapValues(recordsByDate, (v, formattedDate: string) => this.readFile(formattedDate)),
-                );
+        for (const record of memoryCopy) {
+            const filepath = this.getFilepath(record.getDate());
+            const compressed = record.compress(this);
 
-                _.forOwn(results, (result: any, formattedDate) => {
-                    const existingRecords: SerializedRecord[] = result?.value || [];
-
-                    // Serialize all records for this date.
-                    const serializedRecords = _.map(recordsByDate[formattedDate], (r) => r.serialize());
-
-                    // Append the new records to the existing records.
-                    const mergedRecords = existingRecords.concat(serializedRecords);
-
-                    this.writeFile(formattedDate, mergedRecords);
-                });
-
-                return resolve(records.length);
-            } catch (err: any) {
-                this.device.logger.error('An error occured while storing recording:', { meta: err });
-                return reject(err);
+            if (!handles[filepath]) {
+                handles[filepath] = await fs.open(filepath, 'a');
             }
-        });
+
+            handles[filepath].write(compressed + EOL);
+        }
+
+        // Close all file handles
+        Object.values(handles).forEach(handle => {
+            handle.close();
+        })
+    }
+
+    getField(search: Partial<RecordManagerField>) {
+        const field = this.fields.find(f => f.name === search.name || f.id === search.id || f.alias === search.alias);
+        if(!field) {
+            throw new Error(`Cannot find field with '${JSON.stringify(search)}'.`);
+        }
+        return field;
     }
 }

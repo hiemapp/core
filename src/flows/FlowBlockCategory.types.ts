@@ -1,4 +1,4 @@
-import type { Icon } from '~/utils/icons';
+import type { Icon } from '~/ui';
 
 export interface FlowBlockCategoryManifest {
     icon?: Icon;

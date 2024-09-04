@@ -1,1 +1,1 @@
-export * as components from '~/ui/components';
+export { style, icons } from '~/ui';

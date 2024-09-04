@@ -1,20 +1,29 @@
-import { ExtensionModuleFactory, ExtensionModuleConfig } from '../extensions/ExtensionModule';
+import ExtensionModule, { TExtensionModule } from '~/extensions/ExtensionModule';
 
-export type LanguageKey = 'nl-nl' | 'en-us';
+export const LANGUAGE_IDS = ['nl_nl', 'en_us'] as const;
+export type LanguageId = typeof LANGUAGE_IDS[number];
 
-export type MessagesMap = Record<string, string>;
-export type NestedMessagesMap = {
-    [key: string]: NestedMessagesMap | string
+export type NestedMessages = {
+    [key: string]: NestedMessages | string
 };
 
-export interface LanguageMessagesManifest {
-    messages: MessagesMap;
+export interface TLanguageMessages extends TExtensionModule {
+    methods: TExtensionModule['methods'] & {
+        getMessages: () => NestedMessages
+    }
 }
 
-export default class LanguageMessages extends ExtensionModuleFactory<LanguageMessagesManifest>() {
-    map: MessagesMap;
+export default class LanguageMessages extends ExtensionModule<TLanguageMessages> {
+    protected _messages: NestedMessages;
 
-    static __extensionModuleConfig: ExtensionModuleConfig = {
-        manifestRequired: true
+    constructor(id: LanguageId, messages: NestedMessages) {
+        super(id);
+
+        this._messages = messages;
+        
+        this.$module.methods = {
+            ...this.$module.methods,
+            getMessages: () => this._messages
+        }
     }
 }
