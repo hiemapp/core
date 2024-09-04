@@ -47,7 +47,7 @@ export class RotationTrait extends DeviceTrait<IRotationTrait> {
                     max: 360
                 }
             ],
-            passive: false,
+            sensor: false,
             primaryAction: false
         })
 

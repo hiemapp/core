@@ -3,7 +3,7 @@ import type { Icon } from '~/ui';
 import type { ModelEventReason } from '~/lib/ModelEvent';
 import DeviceTrait from './DeviceTrait/DeviceTrait';
 import { DeviceTrait_config } from './DeviceTrait/DeviceTrait.types';
-import { DeviceDisplayRecord, DeviceDisplayText } from './DeviceDisplay';
+import DeviceDisplay, { DeviceDisplayRecord, DeviceDisplayTextList } from './DeviceDisplay';
 
 export type DeviceType = ModelWithPropsType & {
     id: number,
@@ -67,10 +67,7 @@ export interface DevicePropsSerialized extends DeviceProps {
     },
     display: {
         isActive: boolean;
-        content: {
-            text?: DeviceDisplayText,
-            record?: DeviceDisplayRecord
-        }
+        content: DeviceDisplay['content']
     },
     state: Record<string, any>,
     traits: Array<{

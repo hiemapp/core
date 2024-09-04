@@ -24,7 +24,7 @@ export interface DeviceTraitDefaultOptions<ITrait extends any> {
         command: ITrait extends IDeviceTrait ? keyof ITrait['commands'] : string;
         params?: any
     };
-    passive?: boolean;
+    sensor?: boolean;
 }
 
 export type InferDeviceTraitConfig<T extends DeviceTrait<any>> = T extends DeviceTrait<infer C> ? C : never;

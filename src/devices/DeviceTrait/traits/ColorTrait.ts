@@ -34,7 +34,7 @@ export class ColorTrait extends DeviceTrait<IColorTrait> {
 
         this.setDefaultOptions({
             primaryAction: false,
-            passive: false,
+            sensor: false,
             preview: {
                 enabled: false,
                 throttle: 500

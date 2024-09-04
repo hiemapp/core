@@ -22,7 +22,7 @@ export class SwitchTrait extends DeviceTrait<ISwitchTrait> {
         })
 
         this.setDefaultOptions({
-            passive: false,
+            sensor: false,
             primaryAction: {
                 command: 'toggleStatus'
             }

@@ -95,13 +95,12 @@ export default class Device extends ModelWithProps<DeviceType> {
     }
 
     getTraitOrFail<TTrait extends DeviceTrait<any>>(traitClass: Constructor<TTrait>): TTrait | null {
-        return this.getTraits().find(trait => trait instanceof traitClass) ?? null as any;
+        return this.getTraits().find(trait => trait.getName() === traitClass.prototype.getName()) ?? null as any;
     }
 
     hasTrait(traitClass: Constructor<DeviceTrait<any>>) {
         return !!this.getTraitOrFail(traitClass);
     }
-
 
     getTraits(): DeviceTrait<any>[] {
         if(!this._driver) return [];

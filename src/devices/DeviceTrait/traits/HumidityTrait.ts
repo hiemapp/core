@@ -16,17 +16,16 @@ export class HumidityTrait extends DeviceTrait<IHumidityTrait> {
         })
 
         this.setDefaultOptions({
-            passive: false,
+            sensor: false,
             primaryAction: false
         })
 
         this.setDisplayProvider((device, display) => {
             const { humidity } = this.getState(device);
 
-            display.setActive(humidity >= 50);
-            display.setText({
+            display.addText({
                 text: Math.round(humidity)+'%'
-            })
+            });
         })
     }
 }

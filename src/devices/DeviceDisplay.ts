@@ -1,6 +1,7 @@
-import { DevicePropsSerialized } from './Device.types';
+import { Color, Icon } from '~/ui';
 import _ from 'lodash';
 
+export type DeviceDisplayTextList = DeviceDisplayText[];
 export interface DeviceDisplayText {
     text?: string;
     message?: string;
@@ -13,7 +14,7 @@ export interface DeviceDisplayRecord {
 export default class DeviceDisplay {
     protected _isActive: boolean;
     protected content: {
-        text?: DeviceDisplayText,
+        textList?: DeviceDisplayTextList,
         record?: DeviceDisplayRecord
     } = {};
 
@@ -34,8 +35,13 @@ export default class DeviceDisplay {
     }
 
     setText(text: DeviceDisplayText) {
-        this.content.text = text;
+        this.content.textList = [ text ];
         return this;
+    }
+
+    addText(text: DeviceDisplayText) {
+        this.content.textList ??= [];
+        this.content.textList.push(text);
     }
 
     setRecord(record: DeviceDisplayRecord) {

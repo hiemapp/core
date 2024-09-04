@@ -19,14 +19,14 @@ export interface IDimmerTrait {
 export class DimmerTrait extends DeviceTrait<IDimmerTrait> {
     protected init() {
         this.setConfig({
-            menu: false
+            menu: true
         })
 
         this.setDefaultOptions({
             min: 0,
             max: 100,
             primaryAction: false,
-            passive: false
+            sensor: false
         })
 
         this.setCommandRegistry({

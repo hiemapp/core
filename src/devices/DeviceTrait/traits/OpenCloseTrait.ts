@@ -25,7 +25,7 @@ export class OpenCloseTrait extends DeviceTrait<IOpenCloseTrait> {
         this.setDefaultOptions({
             stoppable: true,
             direction: 'vertical',
-            passive: false,
+            sensor: false,
             primaryAction: false
         })
 
