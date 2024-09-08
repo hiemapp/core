@@ -171,9 +171,9 @@ export default class Device extends ModelWithProps<DeviceType> {
         return true;
     }
 
-    async execute(command: string, paramsObj: any, reason: ModelEventReason = {}): Promise<void> {
+    async execute(command: string, paramsObj: any, reason?: ModelEventReason): Promise<void> {
         return new Promise<void>(async (resolve, reject) => {
-            this.logger.debug('Executing command', command, 'with params', paramsObj);
+            this.logger.debug('Executing command', command, 'with params', paramsObj, 'and reason', reason ? reason.toString() : null);
             if(!this.isConnected()) {
                 reject(new DeviceConnectionError(this));
                 return;

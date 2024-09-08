@@ -3,8 +3,9 @@ import type Model from './Model';
 import type User from '~/users/User';
 import { ModelEventListener } from './Model';
 import FlowBlock from '~/flows/Flow';
+import { Script } from '~/scripts';
 
-export interface ModelEventReason { user?: User, flowBlock?: FlowBlock };
+export type ModelEventReason = Script | User;
 
 export default class ModelEvent<TEventData extends any> {
     protected model;
