@@ -8,6 +8,7 @@ export { default as FlowBlockContext } from './FlowBlockContext/FlowBlockContext
 export { default as FlowController } from './FlowController';
 export { default as BlocklyTranspiler } from './BlocklyTranspiler';
 export { default as FlowBlockLayout } from './FlowBlockLayout';
+export { default as FlowLangInterpreter } from './FlowLangInterpreter';
 export * from './Flow.types';
 export * from './FlowBlockCategory.types';
 export * from './FlowBlock.types';

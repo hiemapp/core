@@ -1,5 +1,5 @@
 import ExtensionModule, { ExtensionModuleConfig, TExtensionModule, ExtensionModuleProvider, ExtensionModuleProviderFunction } from '../extensions/ExtensionModule';
-import type { IFlowBlockManifest } from './FlowBlock.types';
+import type { IFlowBlockManifest, IFlowBlockFormat } from './FlowBlock.types';
 import type { IFlowBlockLayout, IFlowBlockLayout_parameter } from './FlowBlockLayout.types';
 import type { FlowBlockTask } from './FlowBlockTask.types';
 import type FlowBlockContext from './FlowBlockContext/FlowBlockContext';
@@ -8,12 +8,15 @@ import FlowBlockLayout from './FlowBlockLayout';
 
 export interface TFlowBlock extends TExtensionModule {
     providers: TExtensionModule['providers'] & {
-        manifest: () => IFlowBlockManifest
-        layout: () => IFlowBlockLayout
+        format: () => IFlowBlockFormat,
+        syntax: () => string[],
+        manifest: () => IFlowBlockManifest,
         run: (block: FlowBlockContext) => unknown
     },
     methods: {
-        getLayout: () => FlowBlockLayout
+        getFormat: () => IFlowBlockFormat,
+        getLayout: () => FlowBlockLayout,
+        getSyntax: () => string[]
     },
     events: {
         'load': [ FlowBlockContext ],
@@ -25,19 +28,29 @@ export interface TFlowBlock extends TExtensionModule {
 
 export default class FlowBlock<TData extends {} = {}> extends ExtensionModule<TFlowBlock, TData> {
     protected _init() {
-        this.$module.methods.getLayout = this._getLayout.bind(this);
+        this.$module.methods.getFormat = this._getFormat.bind(this);
+        this.$module.methods.getLayout = this._getLayout.bind(this) as any;
+        this.$module.methods.getSyntax = this._getSyntax.bind(this);
     }
 
     set run(run: ExtensionModuleProviderFunction<TFlowBlock, 'run'>) {
         this._registerProvider('run', run);
     }
 
+    setSyntax(syntax: ExtensionModuleProvider<TFlowBlock, 'syntax'>) {
+        return this._registerProvider('syntax', syntax);
+    }
+
     setManifest(manifest: ExtensionModuleProvider<TFlowBlock, 'manifest'>) {
         return this._registerProvider('manifest', manifest);
     }
 
+    setFormat(format: ExtensionModuleProvider<TFlowBlock, 'format'>) {
+        return this._registerProvider('format', format);
+    }
+
     setLayout(layout: ExtensionModuleProvider<TFlowBlock, 'layout'>) {
-        this._registerProvider('layout', layout);
+        // this._registerProvider('layout', layout);
     }
 
     static serializeParameterLayout(param: IFlowBlockLayout_parameter) {
@@ -54,8 +67,20 @@ export default class FlowBlock<TData extends {} = {}> extends ExtensionModule<TF
         return param;
     }
 
+    protected _getSyntax() {
+        if(!this._hasProvider('syntax'))  return [];
+        return this.$module.methods.callProvider('syntax', []);    
+    }
+
     protected _getLayout() {
-        const json = this.$module.methods.callProvider('layout', []);
-        return new FlowBlockLayout(json);
+        return null;
+    }
+
+    protected _getFormat() {
+        if(!this._hasProvider('format')) {
+            return { inputs: [] };
+        }
+
+        return this.$module.methods.callProvider('format', []);
     }
 }

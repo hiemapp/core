@@ -23,6 +23,15 @@ export default class Flow extends ModelWithProps<FlowType> {
                 state: {
                     languageVersion: 0,
                     blocks: []
+                },
+                workspace: {
+                    json: {
+                        fields: {
+                            trigger: { blocks: [] },
+                            condition: { blocks: [] },
+                            action: { blocks: []}
+                        }
+                    }
                 }
             }
         }

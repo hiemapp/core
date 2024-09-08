@@ -10,8 +10,25 @@ export interface TFlowBlockModule extends TExtensionModule {
     }
 }
 
+export interface IFlowBlockFormat {
+    inputs: IFlowBlockFormat_input[];
+}
+
+export interface IFlowBlockFormat_input {
+    id: string;
+    type: 'number'|'string'|'time'|'date'|'color'|'device';
+    defaultValue?: any;
+    primary?: boolean;
+    options?: Array<{
+        label?: any;
+        value: any;
+        overrideIcon?: string;
+    }>;
+}
+
 export interface IFlowBlockManifest {
     icon?: string;
+    fieldType: 'trigger' | 'condition' | 'action' | 'output';
     category: string;
     registersHandlers?: FlowblockContextHandlerName[];
     invokesHandlers?: FlowblockContextHandlerName[];

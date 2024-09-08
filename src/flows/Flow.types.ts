@@ -13,6 +13,17 @@ export interface FlowProps {
     name: string;
     icon: string;
     state: BlocklySerializedWorkspace;
+    workspace: {
+        json: FlowWorkspaceJSON
+    }
+}
+
+export interface FlowWorkspaceJSON {
+    fields: Record<'trigger'|'condition'|'action', {
+        blocks: Array<{
+            type: string;
+        }>
+    }>
 }
 
 export interface FlowTaskData {
