@@ -38,7 +38,7 @@ class Taskrunner {
      * The difference in time required for a task to be added to
      * the database.
      */
-    protected static TASK_MIN_TIME_DIFF_FOR_DATABASE: number = 20 * 1000;
+    protected static TASK_MIN_LIFESPAN_FOR_DATABASE: number = 20 * 1000;
 
     /** 
      * The difference in time required for a task to be removed
@@ -139,11 +139,8 @@ class Taskrunner {
             this.tasks[task.uuid] = task;
             this.taskState[task.uuid] = { isPreparing: false };
 
-            // Add task to database, only if the delay is large enough
-            if(task.date && this.getTimeUntil(task.date) > this.TASK_MIN_TIME_DIFF_FOR_DATABASE) {
-                const fields = Database.serializeFields(task);
-                await Database.query(`INSERT INTO \`tasks\` SET ${fields}`);
-            }
+            // Add task to database
+            this.storeTaskInDatabase(task);
 
             this.logger.debug(`Registered new '${task.keyword}' task`, { uuid: task.uuid, date: task.date, interval: task.interval });
             return true;
@@ -151,6 +148,15 @@ class Taskrunner {
             this.logger.error(`Error registering task '${task.uuid}':`, err);
             return false;
         }
+    }
+
+    protected static async storeTaskInDatabase(task: Task) {
+        // Don't add timed tasks with a short lifespan to the database
+        if(task.date && this.getTimeUntil(task.date) < this.TASK_MIN_LIFESPAN_FOR_DATABASE) return false;
+        
+        const fields = Database.serializeFields(task);
+        await Database.query(`INSERT INTO \`tasks\` SET ${fields}`);
+        return true;
     }
 
     protected static async checkTasks() {
