@@ -19,14 +19,8 @@ export default class UserController extends ControllerDatabase<User>() {
             if(!defaultUserRow) {
                 defaultUserRow = rows.find((row) => row.username === this.DEFAULT_USER_USERNAME);
             }
-            
-            if (!defaultUserRow) {
-                throw new Error(
-                    `Cannot find default user. To resolve this issue, create a user with username '${this.DEFAULT_USER_USERNAME}'.`,
-                );
-            }
 
-            return new User(row.id, _.defaultsDeep(row, defaultUserRow));
+            return new User(row.id, _.defaultsDeep(row, defaultUserRow ?? {}));
         });
     }
 }
