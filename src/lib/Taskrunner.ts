@@ -47,7 +47,7 @@ class Taskrunner {
      */
     protected static TASK_PREPARE_MS_BEFORE: number = 20 * 1000;
 
-    static async addTask<TData = any>(manager: TaskManager, keyword: string, date: Date | null = null, interval: string | null = null, data?: TData): Promise<string | false> {
+    static async addTask<TData = any>(manager: TaskManager, keyword: string, date: Date | null = null, interval: string | null = null, data?: TData): Promise<string> {
         const taskUuid = uuid();
 
         try {
@@ -80,10 +80,8 @@ class Taskrunner {
 
             return taskUuid;
         } catch (err: any) {
-            this.logger.error(`Error adding task '${taskUuid}':`, err);
+            throw new Error(`Error adding task '${taskUuid}': ${err.message}.`);
         }
-
-        return false;
     }
 
     static async start() {
