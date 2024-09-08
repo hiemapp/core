@@ -217,7 +217,11 @@ class Taskrunner {
                 if (!this.getTask(task.uuid)) return;
 
                 this.executeTask(task);
-                this.deleteTask(task.uuid);
+
+                // Delete non-repeating task after execution
+                if(!task.interval) {
+                    this.deleteTask(task.uuid);
+                }
             }, msDelay);
         }
     }
@@ -237,6 +241,10 @@ class Taskrunner {
                     handler.callback(task);
                 }
             })
+
+            this.updateTaskState(task.uuid, {
+                isPreparing: false
+            });
         } catch (err: any) {
             this.logger.error(`Error executing task '${task.uuid}':`, err);
         }
