@@ -8,6 +8,7 @@ import fs from 'fs';
 import ExtensionModuleNotRegisteredError from '../errors/ExtensionModuleNotRegisteredError';
 import type { ExtensionType } from './Extension.types';
 import { Constructor } from '~types/helpers';
+import Timer from '~/lib/Timer';
 
 const GLOB_PATTERN_ASSETS = ['assets/language/*.json'];
 
@@ -123,20 +124,21 @@ class Extension extends Model<ExtensionType> {
                 // Call the .activate() method on each module
                 const promises: Promise<any>[] = [];
                 _.forOwn(this.modules, (modules) => {
-                    _.forOwn(modules, module => {
+                    _.forOwn(modules, async module => {
                         if(!module.$module.methods.hasProvider('activate')) return;
                         
+                        const timer = new Timer(); 
                         module.$module.isActivated = true;
-                        const results = [ module.$module.methods.callProvider('activate', []) ];
-                        results.forEach(result => {
-                            promises.push(result);
-                        })
+                        const result = await module.$module.methods.callProvider('activate', []);
+                        this.logger.debug(`Activated module ${module} in ${timer.end()}.`);
+
+                        return result;
                     })
                 })
                 
                 // // Wait until all modules are initialized
                 await Promise.all(promises);
-                this.logger.debug(`Initializing took ${Date.now()-startTime}ms.`);
+                this.logger.info(`Activating took ${Date.now()-startTime}ms.`);
 
                 resolve();
             } catch (err: any) {
