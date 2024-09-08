@@ -9,7 +9,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "tsc && tsconfig-replace-paths"
+    "build": "tsc && tsconfig-replace-paths && rollup -c"
   },
   "dependencies": {
     "base64url": "^3.0.1",
@@ -26,6 +26,8 @@
     "radix-64": "^1.0.4",
     "randomstring": "^1.2.3",
     "react-serialize": "^0.2.1",
+    "rollup": "^4.21.2",
+    "rollup-plugin-dts": "^6.1.1",
     "sanitize-filename": "^1.6.3",
     "stacktrace-js": "^2.0.2",
     "uuid": "^9.0.0",
