@@ -109,7 +109,7 @@ export default class ExtensionModule<T extends TExtensionModule = TExtensionModu
 
     protected _callProvider<P extends keyof T['providers'] & string>(id: P, args: any[]): ExtensionModuleProviderResult<T, P> {
         if (!this._hasProvider(id)) {
-            throw new Error(`No provider '${id}' was registered.`);
+            throw new Error(`No provider '${id}' was registered inside ${this.constructor.name} '${this.$module.name}'.`);
         }
 
         return this.$module.providers[id](...args);
