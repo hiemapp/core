@@ -75,9 +75,7 @@ export default class Logger {
         // Log error stacks
         if(process.env.NODE_ENV === 'development' && errors.length) {
             errors.forEach(error => {
-                if(typeof error.stack === 'string') {
-                    console.error(error.stack.slice(7 + error.message.length + 1));
-                }
+                console.error(error);
             })
         }
     }
