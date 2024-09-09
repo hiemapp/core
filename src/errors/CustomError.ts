@@ -43,7 +43,7 @@ export default class CustomError extends Error {
         const errorType = _.camelCase(this.name.slice(modelType.length));
 
         return {
-            id: `@global.errors.${modelType}.${errorType}`,
+            id: `$main.errors.${modelType}.${errorType}`,
             ctx: this.options.ctx
         }
     }

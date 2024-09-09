@@ -125,7 +125,7 @@ export default class Notification extends ModelWithProps<NotificationType> {
      * @example
      * ```
      * Notification.setMessage({
-     *     id: '@global.errors.device.genericError',
+     *     id: '$main.errors.device.genericError',
      *     ctx: { device }
      * })
      * ```
