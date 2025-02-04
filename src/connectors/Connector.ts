@@ -14,7 +14,7 @@ export interface ConnectorType extends ModelWithPropsType {
     events: {
         'ready': void,
         'stop': void,
-        'data:receive': {
+        'data': {
             getString: () => string,
             getRaw: () => unknown,
             getJSON: () => unknown
@@ -82,6 +82,6 @@ export default class Connector extends ModelWithProps<ConnectorType> {
             }
         };
 
-        this.emit('data:receive', { getRaw, getString, getJSON });
+        this.emit('data', { getRaw, getString, getJSON });
     }
 }

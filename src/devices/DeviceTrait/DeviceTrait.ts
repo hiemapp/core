@@ -52,6 +52,12 @@ export default abstract class DeviceTrait<TTrait extends IDeviceTrait> {
         return device.getMetadata(`traits.${this.getName()}.state`) ?? {};
     }
 
+    /**
+     * Update the state of a device.
+     * @param device The device.
+     * @param partialState An object representing the new state.
+     * @param emitUpdateEvent Whether the device emits a 'state:update' event after updating, defaults to false.
+     */
     setState(device: Device, partialState: Partial<TTrait['state']>, emitUpdateEvent: boolean = false) {
         device.setMetadata(`traits.${this.getName()}.state`, partialState);
 

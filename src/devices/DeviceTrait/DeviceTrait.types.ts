@@ -10,6 +10,9 @@ export type DeviceTraitCommandRegistry<IConfig extends IDeviceTrait> = {
 export type DeviceTraitDisplayProvider = (device: Device, display: DeviceDisplay) => DeviceDisplay|void;
 
 export interface DeviceTrait_config {
+    /**
+     * Whether the trait adds a menu (modal) on the client side.
+     */
     menu: boolean;
 }
 
@@ -20,10 +23,23 @@ export interface IDeviceTrait {
 }
 
 export interface DeviceTraitDefaultOptions<ITrait extends any> {
+    /**
+     * The primary action for when when a user clicks on the device.
+     * @example 
+     * primaryAction: false
+     * 
+     * primaryAction: {
+     *      command:'toggleStatus',
+     *      params: []
+     * }
+     */
     primaryAction?: false | {
         command: ITrait extends IDeviceTrait ? keyof ITrait['commands'] : string;
         params?: any
     };
+    /**
+     * Whether the device is a sensor, that does not support user-input.
+     */
     sensor?: boolean;
 }
 

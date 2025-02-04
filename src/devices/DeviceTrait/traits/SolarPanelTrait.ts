@@ -2,32 +2,32 @@ import DeviceTrait from '../DeviceTrait';
 import { DeviceTraitDefaultOptions } from '../DeviceTrait.types';
 import _ from 'lodash';
 
-export interface ITemperatureTrait {
+export interface ISolarPanelTrait {
     commands: {},
     state: {
-        temperature: number;
+        energy: number;
     },
-    options: DeviceTraitDefaultOptions<ITemperatureTrait>
+    options: DeviceTraitDefaultOptions<ISolarPanelTrait>
 }
 
-export class TemperatureTrait extends DeviceTrait<ITemperatureTrait> {
+export class SolarPanelTrait extends DeviceTrait<ISolarPanelTrait> {
     protected init() {
         this.setConfig({
-            menu: true
+            menu: false
         })
 
         this.setDefaultOptions({
-            sensor: false,
+            sensor: true,
             primaryAction: false
         })
 
         this.setDisplayProvider((device, display) => {
-            const { temperature } = this.getState(device);
+            const { energy } = this.getState(device);
             const precision = device.getOption('precision', 1);
 
             display.setActive(true);
             display.addText({
-                text: display.formatters.temperature(temperature, precision)
+                text: display.formatters.solarEnergy(energy, precision)
             })
         })
     }

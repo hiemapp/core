@@ -56,7 +56,8 @@ export default class Device extends ModelWithProps<DeviceType> {
                         cooldown: 5,
                         flushThreshold: 5
                     },
-                    dummy: false
+                    dummy: false,
+                    pingInterval: 0
                 },
                 metadata: {}
             }
@@ -76,6 +77,7 @@ export default class Device extends ModelWithProps<DeviceType> {
         try {
             this.initConnector();
             this.initDriver();
+            this.initPinger();
 
             await this.initRecordManager();
 
@@ -303,6 +305,27 @@ export default class Device extends ModelWithProps<DeviceType> {
      */
     setMetadata(keypath: string, value: any) {
         return this.setProp(`metadata.${keypath}`, value);
+    }
+
+    /**
+     * Initialize the device's pinger.
+     * 
+     * Drivers and connectors can listen to a device's ping event to
+     * periodically request the current value from a sensor and update
+     * the device's state.
+     */
+    protected initPinger(): void {
+        const pingInterval = this.getOption('pingInterval');
+
+        if(typeof pingInterval === 'number' && pingInterval > 0) {  
+            this.emit('ping', {});
+
+            setInterval(() => {
+                this.emit('ping', {});
+            }, pingInterval*1000);
+
+            this.logger.debug(`Pinger initialized to run every ${pingInterval}s.`);
+        }
     }
 
     /**

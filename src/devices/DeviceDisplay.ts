@@ -1,6 +1,7 @@
 import { Color, Icon } from '~/ui';
 import _ from 'lodash';
 import { User } from '~/users';
+import DeviceDisplayFormatters from '~/devices/DeviceDisplayFormatters';
 
 export type DeviceDisplayTextList = DeviceDisplayText[];
 export interface DeviceDisplayText {
@@ -12,16 +13,29 @@ export interface DeviceDisplayRecord {
     field: string;
 }
 
+export interface DeviceDisplayRichContent {
+    thumbnail?: string;
+    title?: DeviceDisplayText;
+    description?: DeviceDisplayText;
+}
+
+export interface DeviceDisplaySerialized {
+    isActive: boolean;
+    content: DeviceDisplay['content'];
+    richContent: DeviceDisplayRichContent;
+}
+
 export default class DeviceDisplay {
-    protected user?: User;
+    protected richContent: DeviceDisplayRichContent = {};
     protected _isActive: boolean;
     protected content: {
         textList?: DeviceDisplayTextList,
         record?: DeviceDisplayRecord
     } = {};
+    public readonly formatters: DeviceDisplayFormatters;
 
     constructor(user?: User) {
-        this.user = user;
+        this.formatters = new DeviceDisplayFormatters(user);
     }
 
     /**
@@ -55,15 +69,11 @@ export default class DeviceDisplay {
         return this;
     }
 
-    formatTemperature(temperature: number, precision: number = 1) {
-        if(typeof temperature !== 'number') return null;
-        return _.round(temperature, precision)+'°C';
-    }
-
-    serialize() {      
+    serialize(): DeviceDisplaySerialized {      
         return {
             isActive: this.isActive(),
-            content: this.content
+            content: this.content,
+            richContent: this.richContent
         } 
     }
 }
