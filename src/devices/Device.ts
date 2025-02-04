@@ -160,8 +160,11 @@ export default class Device extends ModelWithProps<DeviceType> {
     }
 
     isConnected() {
-        if(!this._connector || !this._driver) return false;
-        if(!this._connector.isReady()) return false;
+        if(!this._driver) return false;
+
+        if(this.getProp('connectorId')) {
+            if(!this._connector || !this._connector.isReady()) return false;
+        }
         
         if(this._driver.$module.methods.hasProvider('checkConnection')) {
             if(this._driver.$module.methods.callProvider('checkConnection', [ this ]) !== true) {
@@ -200,7 +203,6 @@ export default class Device extends ModelWithProps<DeviceType> {
             
             try {
                 this.emit('execute:start', { command, params });
-                console.log('c');
 
                 const traitHandler = trait.commandRegistry[command];
                 if(typeof traitHandler === 'function') {
@@ -215,12 +217,10 @@ export default class Device extends ModelWithProps<DeviceType> {
                 // The driver should perform calls to .setState() immediately,
                 // so we can emit the update before awaiting the promise.
                 this.emit('state:update', { reason: 'execute' });
-                console.log('d');
 
                 if(driverResult instanceof Promise) {
                     await driverResult;
                 }
-                console.log('e');
 
                 this.emit('execute:done', { command, params, success: true });
 
@@ -338,6 +338,6 @@ export default class Device extends ModelWithProps<DeviceType> {
         this._connector = connector;
 
         // Create the connection
-        this.logger.debug(`Connected to ${connector}.`);
+        this.logger.debug(`Connected to ${connector} (${connector.getProp('protocol.type')}).`);
     }
 }
