@@ -1,9 +1,10 @@
 import { Color, Icon } from '~/ui';
 import _ from 'lodash';
+import { User } from '~/users';
 
 export type DeviceDisplayTextList = DeviceDisplayText[];
 export interface DeviceDisplayText {
-    text?: string;
+    text?: string|null;
     message?: string;
 }
 
@@ -12,11 +13,16 @@ export interface DeviceDisplayRecord {
 }
 
 export default class DeviceDisplay {
+    protected user?: User;
     protected _isActive: boolean;
     protected content: {
         textList?: DeviceDisplayTextList,
         record?: DeviceDisplayRecord
     } = {};
+
+    constructor(user?: User) {
+        this.user = user;
+    }
 
     /**
      * Get the active state.
@@ -47,6 +53,11 @@ export default class DeviceDisplay {
     setRecord(record: DeviceDisplayRecord) {
         this.content.record = record;
         return this;
+    }
+
+    formatTemperature(temperature: number, precision: number = 1) {
+        if(typeof temperature !== 'number') return null;
+        return _.round(temperature, precision)+'°C';
     }
 
     serialize() {      

@@ -16,4 +16,5 @@ export interface ScriptProps {
     name: string;
     icon: string;
     code: string;
+    userId: number|null;
 }

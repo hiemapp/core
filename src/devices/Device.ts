@@ -16,6 +16,7 @@ import DeviceInvalidTraitError from '~/errors/DeviceInvalidTraitError';
 import { Connector, ConnectorController } from '~/connectors';
 import DeviceDisplay from './DeviceDisplay';
 import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
+import { User } from '~/users';
 
 export default class Device extends ModelWithProps<DeviceType> {   
     __modelConfig(): ModelWithPropsConfig<DeviceType> {
@@ -135,8 +136,8 @@ export default class Device extends ModelWithProps<DeviceType> {
         return state;
     }
 
-    getDisplay() {
-        let display = new DeviceDisplay();
+    getDisplay(user?: User) {
+        let display = new DeviceDisplay(user);
 
         const traits = this.getTraits();
         traits.forEach(trait => {
@@ -199,6 +200,7 @@ export default class Device extends ModelWithProps<DeviceType> {
             
             try {
                 this.emit('execute:start', { command, params });
+                console.log('c');
 
                 const traitHandler = trait.commandRegistry[command];
                 if(typeof traitHandler === 'function') {
@@ -213,10 +215,12 @@ export default class Device extends ModelWithProps<DeviceType> {
                 // The driver should perform calls to .setState() immediately,
                 // so we can emit the update before awaiting the promise.
                 this.emit('state:update', { reason: 'execute' });
+                console.log('d');
 
                 if(driverResult instanceof Promise) {
                     await driverResult;
                 }
+                console.log('e');
 
                 this.emit('execute:done', { command, params, success: true });
 
@@ -276,10 +280,11 @@ export default class Device extends ModelWithProps<DeviceType> {
     /**
      * Get the value of an option.
      * @param keypath - The key of the option to get.
+     * @param defaultValue - The default (fallback) value.
      * @returns The value of the option.
      */
-    getOption(keypath: string) {
-        return _.get(this.getProp('options'), keypath);
+    getOption(keypath: string, defaultValue: any = null) {
+        return _.get(this.getProp('options'), keypath) ?? defaultValue;
     }
 
     /**

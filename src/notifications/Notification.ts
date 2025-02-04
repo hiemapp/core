@@ -27,7 +27,9 @@ export default class Notification extends ModelWithProps<NotificationType> {
                 message: 'A message.',
                 level: 'info',
                 icon: null,
-                palette: null
+                palette: null,
+                body: '',
+                isHTML: false
             },
             dynamicProps: {
                 icon: () => this.getProp('icon') ?? DEFAULT_PROPS[this.getProp('level')].icon!,
@@ -146,6 +148,25 @@ export default class Notification extends ModelWithProps<NotificationType> {
      * @returns The notification.
      */
     setLevel(level: NotificationProps['level']) { return this.setProp('level', level); }
+    
+    /**
+     * Get the notification body.
+     * @returns The notification body.
+     */
+    getBody() {
+        return this.getProp('body');
+    }
+
+    /**
+     * Set the notification body.
+     * @param body The notification body.
+     * @returns The notification.
+     */
+    setBody(body: string, isHTML = false) {
+        this.setProp('body', body);
+        this.setProp('isHTML', isHTML);
+        return this;
+    }
 
     /**
      * Shorthand for {@link Notification.addRecipients()} and {@link Notification.send()}.

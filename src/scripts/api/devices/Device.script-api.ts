@@ -99,6 +99,44 @@ class Device extends ModelWithProps_SA<Device2> {
     protected _checkTrait(trait: Constructor<DeviceTrait<any>>) {
         this._model.getTrait(trait);
     }
+
+    initEventListeners() {
+        this._model.on('execute:start', data => this.handleEvent(`commands:before:${data.command}`, data))
+        this._model.on('execute:done', data => this.handleEvent(`commands:after:${data.command}`, data))
+    }
+
+    onStateChange(callback: (...args: any) => unknown) {
+        return this.on('state:update', callback);
+    }
+
+    onToggle(callback: (...args: any[]) => unknown) {
+        let isOn = this.isOn();
+
+        return this.on('state:update', (...args) => {
+            if(isOn === this.isOn()) return;
+            
+            isOn = this.isOn()
+            callback(...args)
+        })
+    }
+
+    /**
+     * Add an event listener for a command, before execution.
+     * @param command The name of the command.
+     * @param callback The callback.
+     */
+    beforeCommand(command: string, callback: (data: any) => unknown) {
+        return this.$script.eventListeners.add(`commands:before:${command}`, callback, this._model);
+    }
+    
+    /**
+     * Add an event listener for a command, after execution.
+     * @param command The name of the command.
+     * @param callback The callback.
+     */
+    afterCommand(command: string, callback: (data: any) => unknown) {
+        return this.$script.eventListeners.add(`commands:after:${command}`, callback, this._model);
+    }
 }
 
 export { Device as Device_SA }
