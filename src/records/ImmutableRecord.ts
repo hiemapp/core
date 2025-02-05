@@ -21,8 +21,12 @@ export default class ImmutableRecord {
         return false;
     }
 
+    getTime() {
+        return this._date.getTime();
+    }
+
     getDate() {
-        return new Date(this._date.getTime());
+        return new Date(this.getTime());
     }
 
     getValues() {
