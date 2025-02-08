@@ -62,6 +62,7 @@ export default class DeviceDisplay {
     addText(text: DeviceDisplayText) {
         this.content.textList ??= [];
         this.content.textList.push(text);
+        return this;
     }
 
     setRecord(record: DeviceDisplayRecord) {
