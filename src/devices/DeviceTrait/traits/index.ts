@@ -6,4 +6,5 @@ export { ColorTrait } from './ColorTrait';
 export { HumidityTrait } from './HumidityTrait';
 export { TemperatureTrait } from './TemperatureTrait';
 export { SolarPanelTrait } from './SolarPanelTrait';
-export { EnergyMeterTrait } from './EnergyMeterTrait';
+export { PowerMeterTrait } from './PowerMeterTrait';
+export { GasMeterTrait } from './GasMeterTrait';

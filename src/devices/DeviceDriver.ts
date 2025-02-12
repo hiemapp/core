@@ -1,4 +1,4 @@
-import { Connector } from '~/connectors';
+import { Connector, ConnectorProtocol } from '~/connectors';
 import ExtensionModule, { ExtensionModuleProviderFunction, TExtensionModule } from '../extensions/ExtensionModule';
 import Device from './Device';
 import DeviceTrait from './DeviceTrait/DeviceTrait';
@@ -6,11 +6,13 @@ import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
 import { InferDeviceTraitConfig } from './DeviceTrait/DeviceTrait.types';
 import { Constructor } from '~types/helpers';
 import { DeviceDriverManifest } from './DeviceDriver.types';
+import { ProtocolConfig } from '~/connectors/Connector';
 
 export interface TDeviceDriver extends TExtensionModule {
     providers: TExtensionModule['providers'] & {
         manifest: (device: Device) => DeviceDriverManifest;
         checkConnection: (device: Device) => boolean;
+        getProtocolConfig: (device: Device, config: ProtocolConfig|null) => ProtocolConfig|null
     },
     events: {
         'connectors:add': [ Connector ],
@@ -26,6 +28,10 @@ export default class DeviceDriver<TData extends {} = {}> extends ExtensionModule
 
     protected _init() {
         this.$module.methods.addDevice = this._addDevice.bind(this);
+    }
+
+    set getProtocolConfig(getProtocolConfig: ExtensionModuleProviderFunction<TDeviceDriver, 'getProtocolConfig'>) {
+        this._registerProvider('getProtocolConfig', getProtocolConfig);
     }
 
     set checkConnection(checkConnection: ExtensionModuleProviderFunction<TDeviceDriver, 'checkConnection'>) {
@@ -46,11 +52,6 @@ export default class DeviceDriver<TData extends {} = {}> extends ExtensionModule
 
     protected _addDevice(device: Device) {
         if(this._devices.includes(device)) return false;
-
-        const isNewConnector = this._devices.every(d => d.connector !== device.connector);
-        if(isNewConnector) {
-            this.emit('connectors:add', device.connector);
-        }
 
         this._devices.push(device);
         this.emit('devices:add', device);

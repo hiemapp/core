@@ -5,9 +5,17 @@ import _ from 'lodash';
 export interface ISolarPanelTrait {
     commands: {},
     state: {
-        energy: number;
+        energy: {
+            today: number;
+            total: number;
+        }
     },
-    options: DeviceTraitDefaultOptions<ISolarPanelTrait>
+    options: DeviceTraitDefaultOptions<ISolarPanelTrait> & {
+        display?: { 
+            /** The scale of the display values (use 1 for Watts, or 1000 for kilowatts). When set to null, a scale is determined automatically. */
+            scale?: 1 | 1000 | null 
+        }
+    }
 }
 
 export class SolarPanelTrait extends DeviceTrait<ISolarPanelTrait> {
@@ -18,16 +26,21 @@ export class SolarPanelTrait extends DeviceTrait<ISolarPanelTrait> {
 
         this.setDefaultOptions({
             sensor: true,
-            primaryAction: false
+            primaryAction: false,
+            display: {
+                scale: null
+            }
         })
 
         this.setDisplayProvider((device, display) => {
             const { energy } = this.getState(device);
-            const precision = device.getOption('precision', 1);
+            const precision = device.getOption('display.precision', 1);
 
-            display.setActive(true);
+            const displayScale = this.getOption('display.scale');
+
+            display.setActive(energy.today > 0);
             display.addText({
-                text: display.formatters.solarEnergy(energy, precision)
+                text: display.formatters.energy(energy.today, precision, displayScale) + ' today'
             })
         })
     }

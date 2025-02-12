@@ -13,10 +13,11 @@ import DeviceCommandNotSupportedError from '~/errors/DeviceCommandNotSupportedEr
 import DeviceTrait from './DeviceTrait/DeviceTrait';
 import { Constructor } from '~types/helpers';
 import DeviceInvalidTraitError from '~/errors/DeviceInvalidTraitError';
-import { Connector, ConnectorController } from '~/connectors';
+import { Connector } from '~/connectors';
 import DeviceDisplay from './DeviceDisplay';
 import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
 import { User } from '~/users';
+import ConnectorController from '~/connectors/ConnectorController';
 
 export default class Device extends ModelWithProps<DeviceType> {   
     __modelConfig(): ModelWithPropsConfig<DeviceType> {
@@ -73,17 +74,21 @@ export default class Device extends ModelWithProps<DeviceType> {
     get records() { return this._records; }
     protected _records: RecordManager;
 
+    protected hasConnector: boolean = false;
+
     async __init() {
         try {
-            this.initConnector();
             this.initDriver();
+            this.initConnector();
             this.initPinger();
+
+            this._driver.$module.methods.addDevice(this);
 
             await this.initRecordManager();
 
             if(!this.isConnected()) return;
         } catch (err: any) {
-            this.logger.error('Initialization error: ', err);
+            this.logger.error('Initialization error:', err);
         }
     }
 
@@ -152,19 +157,14 @@ export default class Device extends ModelWithProps<DeviceType> {
         return display.serialize();
     }
 
-    getDriverConfig() {
-        const config = this.getProp('driver');
-
-        return {
-            type: typeof config?.type === 'string' ? config.type : null,
-            options: config.options ?? {}
-        }
+    getDriverConfig<TOptions extends Record<string, any>>() {
+        return this.getProp('driver') as { type: string|null, options: TOptions };
     }
 
     isConnected() {
         if(!this._driver) return false;
 
-        if(this.getProp('connectorId')) {
+        if(this.hasConnector) {
             if(!this._connector || !this._connector.isReady()) return false;
         }
         
@@ -331,18 +331,17 @@ export default class Device extends ModelWithProps<DeviceType> {
     /**
      * Initialize the driver.
      */
-    protected initDriver(): void {
-        const driverConfig = this.getProp('driver');
+    protected initDriver(): boolean {
+        const driverConfig = this.getDriverConfig();
 
-        if (typeof driverConfig.type !== 'string') {
+        if (typeof driverConfig?.type !== 'string') {
             this.logger.notice('No driver configured.');
-            return;
+            return false;
         }
 
+        this._driver = ExtensionController.findModule(DeviceDriver, driverConfig.type);
 
-        const driver = ExtensionController.findModule(DeviceDriver, driverConfig.type);
-        driver.$module.methods.addDevice(this);
-        this._driver = driver;
+        return true;
     }
 
     protected async initRecordManager(): Promise<void> {
@@ -351,16 +350,39 @@ export default class Device extends ModelWithProps<DeviceType> {
     }
 
     /**
-     * Initializethe connection.
+     * Initialize the connector.
      */
-    protected async initConnector() {
+    protected initConnector() { 
         const connectorId = this.getProp('connectorId');
-        if(typeof connectorId !== 'number') return;
+        if(!connectorId) {
+            this.logger.notice('No connector specified.');
+            return false;
+        }
 
-        const connector = ConnectorController.find(connectorId);
-        this._connector = connector;
+        this._connector = ConnectorController.find(connectorId);    
 
-        // Create the connection
-        this.logger.debug(`Connected to ${connector} (${connector.getProp('protocol.type')}).`);
+        if(!this.connector.isInitialized()) {
+            // Get the connectors's default protocol config
+            let protocolConfig = this.connector.getProp('protocol');
+
+            // Allow the driver to modify the protocol config
+            if(this.driver.$module.methods.hasProvider('getProtocolConfig')) {
+                this.connector.logger.debug(`Getting protocol config from ${this.driver} (from ${this}).`);
+                protocolConfig = this.driver.$module.methods.callProvider('getProtocolConfig', [ this, protocolConfig ]);
+            }
+
+            if (typeof protocolConfig?.type !== 'string') {
+                this.logger.notice('No protocol config specified.');
+                return false;
+            }
+            
+            // Initialize the connector with the new protocol config
+            this.connector.initialize(protocolConfig);
+
+            // Let the driver know that there is a new connector
+            this.driver.emit('connectors:add', this.connector);
+        }
+
+        this.logger.debug('Connector initialized.');
     }
 }

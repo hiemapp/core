@@ -20,13 +20,10 @@ export default class ScriptEventListenerManager {
     }
 
     add(event: string, callback: ScriptEventListenerCallback, model: Model<any>, onRemove?: () => unknown) {
-        console.log('add', event, callback);
         this.listeners.push({ event, callback, model, onRemove })
     }
 
     remove(event: string, callback: ScriptEventListenerCallback, model: Model<any>) {
-        console.log('remove', event, callback);
-
         const listenersLengthBefore = this.listeners.length;
         this.listeners = this.listeners.filter(l => {
             const shouldRemove = (l.event === event && l.callback === callback && l.model === model);

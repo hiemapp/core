@@ -6,6 +6,7 @@ import DeviceDisplayFormatters from '~/devices/DeviceDisplayFormatters';
 export type DeviceDisplayTextList = DeviceDisplayText[];
 export interface DeviceDisplayText {
     text?: string|null;
+    html?: string|null;
     message?: string;
 }
 
@@ -48,8 +49,16 @@ export default class DeviceDisplay {
     /**
      * Set the active state.
      * @param isActive - Whether the device display should be active.
+     * @param override - Whether `isActive` should be set to false, if currently true.
+     * 
+     * @example
+     * setActive(true)        // `isActive` is now true.
+     * setActive(false)       // `isActive` remains true (`overrideActive` defaults to false).
+     * setActive(false, true) // `isActive` is now false.
      */
-    setActive(isActive: boolean): this {
+    setActive(isActive: boolean, overrideActive: boolean = false): this {
+        if(this._isActive && !overrideActive) return this;
+
         this._isActive = isActive;
         return this;
     }
