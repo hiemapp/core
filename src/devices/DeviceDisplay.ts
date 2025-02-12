@@ -1,9 +1,12 @@
 import { Color, Icon } from '~/ui';
 import _ from 'lodash';
+import { User } from '~/users';
+import DeviceDisplayFormatters from '~/devices/DeviceDisplayFormatters';
 
 export type DeviceDisplayTextList = DeviceDisplayText[];
 export interface DeviceDisplayText {
-    text?: string;
+    text?: string|null;
+    html?: string|null;
     message?: string;
 }
 
@@ -11,12 +14,30 @@ export interface DeviceDisplayRecord {
     field: string;
 }
 
+export interface DeviceDisplayRichContent {
+    thumbnail?: string;
+    title?: DeviceDisplayText;
+    description?: DeviceDisplayText;
+}
+
+export interface DeviceDisplaySerialized {
+    isActive: boolean;
+    content: DeviceDisplay['content'];
+    richContent: DeviceDisplayRichContent;
+}
+
 export default class DeviceDisplay {
+    protected richContent: DeviceDisplayRichContent = {};
     protected _isActive: boolean;
     protected content: {
         textList?: DeviceDisplayTextList,
         record?: DeviceDisplayRecord
     } = {};
+    public readonly formatters: DeviceDisplayFormatters;
+
+    constructor(user?: User) {
+        this.formatters = new DeviceDisplayFormatters(user);
+    }
 
     /**
      * Get the active state.
@@ -28,8 +49,16 @@ export default class DeviceDisplay {
     /**
      * Set the active state.
      * @param isActive - Whether the device display should be active.
+     * @param override - Whether `isActive` should be set to false, if currently true.
+     * 
+     * @example
+     * setActive(true)        // `isActive` is now true.
+     * setActive(false)       // `isActive` remains true (`overrideActive` defaults to false).
+     * setActive(false, true) // `isActive` is now false.
      */
-    setActive(isActive: boolean): this {
+    setActive(isActive: boolean, overrideActive: boolean = false): this {
+        if(this._isActive && !overrideActive) return this;
+
         this._isActive = isActive;
         return this;
     }
@@ -42,6 +71,7 @@ export default class DeviceDisplay {
     addText(text: DeviceDisplayText) {
         this.content.textList ??= [];
         this.content.textList.push(text);
+        return this;
     }
 
     setRecord(record: DeviceDisplayRecord) {
@@ -49,10 +79,11 @@ export default class DeviceDisplay {
         return this;
     }
 
-    serialize() {      
+    serialize(): DeviceDisplaySerialized {      
         return {
             isActive: this.isActive(),
-            content: this.content
+            content: this.content,
+            richContent: this.richContent
         } 
     }
 }

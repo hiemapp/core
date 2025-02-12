@@ -11,7 +11,9 @@ export interface NotificationProps {
         id: string, 
         values?: Record<string, any>,
         ctx?: Record<string, ModelWithProps<any>>
-    }
+    },
+    body: string,
+    isHTML: boolean
 }
 
 export interface NotificationType extends ModelWithPropsType {

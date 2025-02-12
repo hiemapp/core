@@ -1,29 +1,27 @@
-import { dirs } from '../utils/paths';
 import type Device from '../devices/Device';
-import path from 'path';
 import dayjs from 'dayjs';
 import fs from 'fs/promises';
 import ImmutableRecord from './ImmutableRecord';
 import _ from 'lodash';
 import MutableRecord from './MutableRecord';
-import { EOL } from 'os';
 import { isValidDate } from '~/utils/date';
 import Manifest from '~/utils/Manifest';
-import { glob } from 'glob';
-import RecordSet from './RecordSet';
+import RecordSet from './RecordSampler';
 import { CustomError } from '~/errors';
+import RecordParser from '~/records/parsers/RecordParser';
+import CsvRecordParser from '~/records/parsers/CsvRecordParser';
+import { Config } from '~/lib';
+import LocalRecordArchiver from './archivers/LocalRecordArchiver';
+import RecordArchiver from './archivers/RecordArchiver';
+import MsgpackRecordParser from './parsers/MsgpackRecordParser';
 
 export interface RecordManagerField {
     name: string;
     id: number;
-    alias: string;
 }
 
 export type RecordManagerSortMode = 'TIME_DESCENDING' | 'TIME_ASCENDING';
 export type RecordManagerSortFunction = (a: ImmutableRecord | MutableRecord, b: ImmutableRecord | MutableRecord) => boolean;
-
-const MEMORY_FLUSH_COOLDOWN_MILLIS = 100;
-const MEMORY_FLUSH_MIN_LENGTH = 10;
 
 const SORT_FUNCTIONS: Record<RecordManagerSortMode, RecordManagerSortFunction> = {
     TIME_ASCENDING: (a, b) => a.getDate().getTime() < b.getDate().getTime(),
@@ -42,8 +40,10 @@ export interface RecordIndex {
 }
 
 export default class RecordManager {
-    private device: Device;
-    private baseDir: string;
+    public readonly device: Device;
+
+    public archivers: RecordArchiver[];
+    public parsers: RecordParser[];
 
     private memory: ImmutableRecord[] = [];
     protected index: Manifest<RecordIndex>;
@@ -54,21 +54,30 @@ export default class RecordManager {
 
     constructor(device: Device) {
         this.device = device;
-        this.baseDir = path.resolve(dirs().STORAGE, 'devices', this.device.id.toString(), 'recording');
     }
 
     async init() {
         if (!this.device.getOption('recording.enabled')) return;
 
-        this.init_loadFields();
-        await this.init_loadIndex();
-        await this.init_makeDirs().catch(() => null)
-        await this.init_checkFileIndex();
+        // Load recording fields
+        const driverManifest = this.device.driver.getManifest(this.device);
+        this.fields = driverManifest.getArr('recording.fields');
+
+        // Create parsers
+        this.parsers = [
+            await MsgpackRecordParser.create(this),
+            await CsvRecordParser.create(this)
+        ];
+
+        // Create archivers
+        this.archivers = [
+            await LocalRecordArchiver.create(this)
+        ]
     }
 
     /**
-     * Store a new record.
-     * @param recording - The record to store.
+     * Add a new record.
+     * @param recording - The record to add.
      */
     add(record: ImmutableRecord | MutableRecord, checkInterval: boolean = false) {
         try {
@@ -83,8 +92,8 @@ export default class RecordManager {
             if (intervalSeconds > 0 && this.latestRecord) {
                 const diffMillis = record.getDate().getTime() - this.latestRecord.getDate().getTime();
 
-                // Discard the record if the difference is less than the interval
-                if (diffMillis < intervalSeconds * 1000) return;
+                // Discard the record if the difference is less than the 95% of the interval
+                if (diffMillis < intervalSeconds * 1000 * 0.95) return;
             }
 
             this.store(record);
@@ -93,66 +102,46 @@ export default class RecordManager {
         }
     }
 
-    async updateFileIndex(date: Date | string | number) {
-        const filepath = this.getFilepath(date);
-        const filename = path.parse(filepath).name;
-        const records = this.sort(await this.readFile(date, false), 'TIME_ASCENDING');
-        if (records.length === 0) return;
+    /**
+     * Read the latest `count` records. Set `count` to -1 to read all records.
+     * @param limit The number of records to read.
+     * @returns The records.
+     */
+    async readLatest(limit: number = 100) {
+        const indexDates = _.chain(await Promise.all(this.archivers.map(a => a.getIndex())))
+            .flatten()
+            .uniqBy(d => d.getTime())
+            .orderBy(d => d.getTime(), 'desc')
+            .value();
 
-        this.index.set(`files.${filename}`, {
-            name: filename,
-            start: records[0].getDate().toString(),
-            end: records[records.length - 1].getDate().toString(),
-            length: records.length
-        })
-    }
+        let records: ImmutableRecord[] = [];
 
-    getFileIndex(doSort: boolean = false) {
-        // Read file index
-        const fileIndex = Object.values(this.index.get('files') ?? {});
+        for(const date of indexDates) {
+            records.push(...await this.readFile(date));
+            records = this.filterRecords(records);
 
-        // Create date objects
-        let hydratedFileIndex = fileIndex.map(file => ({
-            ...file,
-            start: new Date(file.start),
-            end: new Date(file.end)
-        }));
-
-        // Sort file index
-        if (doSort) {
-            hydratedFileIndex = _.sortBy(hydratedFileIndex, file => 1/file.start.getTime());
+            // Stop if the desired number of records has been read
+            if(records.length >= limit || limit < 0) break;
         }
 
-        return hydratedFileIndex;
+        // Make sure that `records` is not longer than `limit`
+        records = records.slice(0, limit);
+
+        return records;
     }
 
-    async readLatest(top: number, skip: number = 0, doAliasRemap: boolean = true) {
-        const sortedFileIndex = this.getFileIndex(true);
-        const filenames = [];
-
-        let totalLength = 0;
-        let startSliceIndex = skip;
-        for (const file of sortedFileIndex) {
-            totalLength += file.length;
-            if(totalLength < skip) {
-                startSliceIndex -= file.length;
-                continue;
-            }
-
-            filenames.push(file.name);
-            if (totalLength >= skip+top) break;
-        }
-
-        const records = this.sort(await this.readFiles(filenames, doAliasRemap), 'TIME_DESCENDING');
-        const slicedRecords = records.slice(startSliceIndex, top-skip);
-
-        return new RecordSet(slicedRecords);
+    /**
+     * Read all records.
+     * @returns All records.
+     */
+    readAll() {
+        return this.readLatest(-1);
     }
 
-    readFiles(dates: (Date|string|number)[], doAliasRemap: boolean = true) {
+    readFiles(dates: Date[]) {
         return new Promise<ImmutableRecord[]>((resolve, reject) => {
-            const promises = dates.map(date => this.readFile(date, doAliasRemap));
-            
+            const promises = dates.map(date => this.readFile(date));
+
             const allRecords: ImmutableRecord[] = [];
             Promise.allSettled(promises).then(results => {
                 results.forEach(result => {
@@ -165,7 +154,7 @@ export default class RecordManager {
         })
     }
 
-    async readPeriod(start: Date, end: Date, convertAliases: boolean = true) {
+    async readPeriod(start: Date, end: Date) {
         if (!isValidDate(start)) {
             throw new CustomError({
                 message: `Invalid start date: ${start}`,
@@ -185,52 +174,63 @@ export default class RecordManager {
 
         const dateDiff = dayjs(end).diff(start, 'day');
         const dates = _.times(dateDiff + 1, i => dayjs(start).add(i, 'day').toDate());
-        const records = await this.readFiles(dates, convertAliases);
+        const records = await this.readFiles(dates);
 
-        const filteredRecords = records.filter(r => r.getDate().getTime() >= start.getTime() && r.getDate().getTime() <= end.getTime());
-        return new RecordSet(filteredRecords);
+        // Filter records that are not in the selected period
+        return records.filter(r => r.getTime() >= start.getTime() && r.getTime() <= end.getTime());
     }
 
-    sort(records: (ImmutableRecord | MutableRecord)[], mode: RecordManagerSortMode) {
+    sort<T extends ImmutableRecord>(records: T[], mode: RecordManagerSortMode): T[] {
         return records.sort((a, b) => SORT_FUNCTIONS[mode](a, b) ? -1 : 1);
     }
 
-    async readFile(date: Date | number | string, doAliasRemap: boolean = true) {
-        return new Promise<ImmutableRecord[]>((resolve, reject) => {
-            const filepath = this.getFilepath(date);
-            fs.readFile(filepath, 'utf8').then(content => {
-                const records: ImmutableRecord[] = [];
-
-                const lines = content.split(/\r?\n/);
-                lines.forEach(line => {
-                    const record = ImmutableRecord.decompress(line, this, doAliasRemap);
-                    if(record.isValid()) {
-                        records.push(record);
-                    }
-                })
-
-                // Append records from memory if the date matches
-                this.memory.forEach(record => {
-                    if(dayjs(date).isSame(record.getDate(), 'day')) {
-                        records.push(record);
-                    }
-                })
-
-                return resolve(records);    
-            }).catch(err => {
-                if(err.code !== 'ENOENT') {
-                    this.device.logger.error(err);
+    async readFile(date: Date) {
+        return new Promise<ImmutableRecord[]>(async (resolve, reject) => {
+            const promises: Promise<ImmutableRecord[]>[] = [];
+            
+            for(const archiver of this.archivers) {
+                for(const parser of this.parsers) {
+                    promises.push(this._readFileFromArchive(date, archiver, parser))
                 }
-                
-                return resolve([]);
-            })
+            }
+
+            let records = _.flatten(await Promise.all(promises));
+
+            // Find records in memory from the same date and append them
+            const memoryRecords = this.memory.filter(rd => dayjs(date).isSame(rd.getDate(), 'day'));
+            records.push(...memoryRecords);
+
+            records = this.filterRecords(records);
+
+            resolve(records);
         })
     }
 
-    protected getFilepath(date: number | Date | string) {
-        const filename = dayjs(date).format('YYYY-MM-DD');
-        return this.resolvePath('./records', filename + '.csv');
+    protected async _readFileFromArchive(date: Date, archiver: RecordArchiver, parser: RecordParser) {
+        return new Promise<ImmutableRecord[]>((resolve, reject) => {
+            archiver.load(parser, date).then(content => {
+                if(!(content instanceof Buffer)) return resolve([]);
+
+                parser.decompress(content)
+                    .then(records => resolve(records))
+                    .catch(err => {
+                        this.device.logger.error(`Decompression error (${dayjs(date).format('YYYY-MM-DD')}, ${archiver}, ${parser}):`, err)
+                        resolve([]);
+                    })
+            })
+
+        })
     }
+
+    /**
+     * Filters duplicate records from a list.
+     * @param records The records to filter.
+     * @returns A filtered list of records.
+     */
+    filterRecords(records: ImmutableRecord[]) {
+        return _.uniqBy(records, r => r.getTime());
+    }
+
 
     // private downsampleRecords(records: SerializedRecord[], target: number) {
     //     const fields = this.config.get('fields');
@@ -257,93 +257,86 @@ export default class RecordManager {
     //     return this.c
     // }
 
-    protected init_loadFields() {
-        const driverManifest = this.device.driver.getManifest(this.device);
-        const fields = driverManifest.getArr('device.recording.fields');
-
-        this.fields = [];
-        fields.forEach((field: any) => {
-            this.fields.push({
-                name: field.name,
-                id: field.id,
-                alias: String.fromCharCode(field.id+65)
-            })
-        })
-    }
-
-    protected async init_loadIndex() {
-        const indexFilepath = this.resolvePath('./index.json');
-        this.index = await Manifest.fromFile(indexFilepath);
-    }
-
-    protected async init_makeDirs() {
-        await fs.mkdir(this.resolvePath('./records'));
-    }
-
-    protected async init_checkFileIndex() {
-        const pattern = this.resolvePath('./records/*.csv').replaceAll('\\', '/');
-        const filepaths = await glob.glob(pattern);
-        for(const filepath of filepaths) {
-            const filename = path.parse(filepath).name;
-            await this.updateFileIndex(filename);
-        }
-        // console.log(this.getFileIndex());
-    }
-
-    protected resolvePath(...paths: string[]) {
-        return path.resolve(this.baseDir, ...paths);
-    }
-
     private store(record: ImmutableRecord | MutableRecord) {
         // Convert record to immutable
         if (record instanceof MutableRecord) {
             record = record.toImmutable();
         }
 
-        // this.device.logger.debug(`Storing ${record} in memory.`);
+        this.device.logger.debug(`Storing ${record} in memory.`);
 
         this.memory.push(record);
         this.latestRecord = record;
 
-        // Reset the timeout
-        if (this.memory.length >= MEMORY_FLUSH_MIN_LENGTH) {
-            clearTimeout(this.__flushTimeoutId);
-
-            this.__flushTimeoutId = setTimeout(() => {
-                this.flushMemory();
-            }, MEMORY_FLUSH_COOLDOWN_MILLIS);
+        // Save the recordings if the maximum number of recordings in memory is reached
+        if (this.memory.length >= Config.get('system.devices.recording.memorySize')) {
+            this.archiveMemory();
         }
     }
 
-    protected async flushMemory() {
-        const handles: Record<string, fs.FileHandle> = {};
+    /**
+     * The primary archiver is the archiver used for saving files.
+     * @returns The primary archiver.
+     */
+    getPrimaryArchiver() {
+        return this.archivers[0];
+    }
 
+    /**
+     * The primary archiver is the archiver used for saving files.
+     * @returns The primary archiver.
+     */
+    getPrimaryParser() {
+        return this.parsers[0];
+    }
+
+    /**
+     * Archive the current memory.
+     */
+    async archiveMemory() {
         // Copy and empty the memory
-        const memoryCopy = [...this.memory];
+        const memory = [...this.memory];
         this.memory = [];
 
-        this.device.logger.debug(`Flushing ${memoryCopy.length} record(s) stored in memory to disk.`);
+        // Save the records
+        const start = Date.now();
+        await this.archiveRecords(memory);
+        
+        this.device.logger.debug(`Saving ${memory.length} record(s) took ${Date.now()-start}ms...`);
+    }
 
-        for (const record of memoryCopy) {
-            const filepath = this.getFilepath(record.getDate());
-            const compressed = record.compress(this);
+    /**
+     * Compress and archive records.
+     * @param records The records to save, which can be of various dates.
+     */
+    async archiveRecords(records: ImmutableRecord[]) {
+        const groupedRecords = this._groupRecords(records);
 
-            if (!handles[filepath]) {
-                handles[filepath] = await fs.open(filepath, 'a');
-            }
+        const archiver = this.getPrimaryArchiver();
+        const parser = this.getPrimaryParser();
 
-            handles[filepath].write(compressed + EOL);
-        }
+        await Promise.all(groupedRecords.map(async ({ date, records }) => {
+            const allRecords = await this.readFile(date);
+            allRecords.push(...records);
+            
+            await parser.compress(allRecords)
+                .then(content => archiver.save(parser, date, content))
+                .catch(err => this.device.logger.error(`Compression error (${dayjs(date).format('YYYY-MM-DD')}, ${archiver}, ${parser}):`, err));
+        }))
+    }
 
-        // Close all file handles
-        Object.values(handles).forEach(handle => {
-            handle.close();
-        })
+    /**
+     * Groups records by date.
+     * @param records The records to group.
+     */
+    protected _groupRecords(records: ImmutableRecord[]): { date: Date, records: ImmutableRecord[] }[] {
+        const groupedRecords = _.groupBy(records, rd => dayjs(rd.getDate()).format('YYYY-MM-DD'));
+        return _.map(_.entries(groupedRecords), ([k, v]) => ({ date: new Date(k), records: v }))
     }
 
     getField(search: Partial<RecordManagerField>) {
-        const field = this.fields.find(f => f.name === search.name || f.id === search.id || f.alias === search.alias);
-        if(!field) {
+        const field = this.fields.find(f => f.name === search.name || f.id === search.id);
+        if (!field) {
             throw new Error(`Cannot find field with '${JSON.stringify(search)}'.`);
         }
         return field;

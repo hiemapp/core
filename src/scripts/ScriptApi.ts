@@ -9,6 +9,7 @@ import { RepeatingTask_SA } from './api/utils/RepeatingTask.script-api';
 import { Constructor } from '~types/helpers';
 import { ApiModule_SA } from './api/lib/ApiStaticModule.script-api';
 import { DevicesModule_SA } from '~/scripts/api/devices/DevicesModule.script-api';
+import { time_SA } from './api/utils/time.script-api';
 
 export default class ScriptApi {
     script: Script;
@@ -20,7 +21,8 @@ export default class ScriptApi {
     getObject(): Exports {
         return {
             devices: this.loadControllerModule(DevicesModule_SA, Device_SA, Device),
-            RepeatingTask: this.loadStaticModule(RepeatingTask_SA)
+            RepeatingTask: this.loadStaticModule(RepeatingTask_SA),
+            time: time_SA
         }
     }
 

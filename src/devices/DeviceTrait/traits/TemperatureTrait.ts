@@ -1,8 +1,6 @@
-import { palettes } from '~/ui/constants/style';
 import DeviceTrait from '../DeviceTrait';
 import { DeviceTraitDefaultOptions } from '../DeviceTrait.types';
-import { icons } from '~/ui/constants/icons';
-import { HumidityTrait } from './HumidityTrait';
+import _ from 'lodash';
 
 export interface ITemperatureTrait {
     commands: {},
@@ -25,9 +23,11 @@ export class TemperatureTrait extends DeviceTrait<ITemperatureTrait> {
 
         this.setDisplayProvider((device, display) => {
             const { temperature } = this.getState(device);
+            const precision = device.getOption('precision', 1);
 
+            display.setActive(true);
             display.addText({
-                text: Math.round(temperature)+'°C'
+                text: display.formatters.temperature(temperature, precision)
             })
         })
     }

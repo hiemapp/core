@@ -5,3 +5,6 @@ export { RotationTrait } from './RotationTrait';
 export { ColorTrait } from './ColorTrait';
 export { HumidityTrait } from './HumidityTrait';
 export { TemperatureTrait } from './TemperatureTrait';
+export { SolarPanelTrait } from './SolarPanelTrait';
+export { PowerMeterTrait } from './PowerMeterTrait';
+export { GasMeterTrait } from './GasMeterTrait';

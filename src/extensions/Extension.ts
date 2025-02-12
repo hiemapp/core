@@ -123,16 +123,18 @@ class Extension extends Model<ExtensionType> {
 
                 // Call the .activate() method on each module
                 const promises: Promise<any>[] = [];
-                _.forOwn(this.modules, (modules) => {
+                _.forOwn(this.modules, modules => {
                     _.forOwn(modules, async module => {
                         if(!module.$module.methods.hasProvider('activate')) return;
                         
                         const timer = new Timer(); 
                         module.$module.isActivated = true;
-                        const result = await module.$module.methods.callProvider('activate', []);
-                        this.logger.debug(`Activated module ${module} in ${timer.end()}.`);
+                        
+                        const promise = (async () => await module.$module.methods.callProvider('activate', []))().then(() => {
+                            this.logger.debug(`Activated module ${module} in ${timer.end()}.`);
+                        });
 
-                        return result;
+                        promises.push(promise);
                     })
                 })
                 

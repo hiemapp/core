@@ -1,1 +1,1 @@
-export { Connector, ConnectorProtocol, ConnectorController } from '~/connectors';
+export { Connector, ConnectorProtocol } from '~/connectors';
