@@ -232,8 +232,11 @@ export default class Device extends ModelWithProps<DeviceType> {
                 oldStates.forEach(([ trait, oldState ]) => {
                     trait.setState(this, oldState, false);
                 })
+
                 this.emit('state:update', { reason: 'execute' });
                 this.emit('execute:done', { command, params, success: false });
+
+                this.logger.error(`Error executing command ${command}:`, err);
 
                 reject(err);
             }
