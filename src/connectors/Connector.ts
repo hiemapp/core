@@ -89,11 +89,11 @@ export default class Connector extends ModelWithProps<ConnectorType> {
         throw new Error(`Invalid value for option '${keypath}': ${value}.`);
     }
 
-    async send(data: unknown) {
+    send(data: unknown) {
         this.protocol.emit('data:send', this, data);
     }
 
-    async receive(data: unknown) {
+    receive(data: unknown) {
         const getRaw = () => data;
         const getString = () => data+'';
         const getJSON = () => {
