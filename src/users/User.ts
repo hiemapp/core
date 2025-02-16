@@ -13,7 +13,8 @@ export default class User extends ModelWithProps<UserType> {
         return {
             controller: UserController,
             defaults: {
-                name: null,
+                firstName: null,
+                lastName: null,
                 username: 'user',
                 permissions: {},
                 settings: {},

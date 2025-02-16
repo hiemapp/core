@@ -8,7 +8,8 @@ export interface UserType extends ModelWithPropsType {
 
 interface UserProps {
     id: number;
-    name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     username: string;
     permissions: Record<string, boolean>;
     settings: Record<string, any>,
