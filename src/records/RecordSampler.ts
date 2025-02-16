@@ -2,6 +2,9 @@ import { DataPoint, LTTB } from 'downsample';
 import ImmutableRecord from './ImmutableRecord';
 import { forOwn } from 'lodash';
 
+export type RecordSamplerDataset = { id: string, values: [ number, number][] };
+export type RecordSamplerSerializedRecord = Record<string, number>; 
+
 export default class RecordSampler {
     protected records: ImmutableRecord[];
 
@@ -10,22 +13,35 @@ export default class RecordSampler {
     }
 
     getDatasets() {
-        const datasetsObj: Record<string, any> = {};
+        const datasets: Record<string, RecordSamplerDataset> = {};
 
         this.records.forEach(record => {
             forOwn(record.getValues(), (value, field) => {
-                datasetsObj[field] ??= { id: field, values: [] };
-                datasetsObj[field].values.push([ record.getDate().getTime(), value ]);
+                datasets[field] ??= { id: field, values: [] };
+                datasets[field].values.push([ record.getDate().getTime(), value ]);
             })
         })
 
-        return Object.values(datasetsObj);
+        return Object.values(datasets);
+    }
+    
+    static serialize(datasets: RecordSamplerDataset[]) {
+        const records: Record<string, RecordSamplerSerializedRecord> = {};
+
+        datasets.forEach(dataset => {
+            dataset.values.forEach(([ time, value ]) => {
+                records[time] ??= { '$time': time };
+                records[time][dataset.id] = value;
+            })
+        })
+
+        return Object.values(records); 
     }
 
     downsample(n: number) {
-        return  this.getDatasets().map(dataset => ({
+        return this.getDatasets().map(dataset => ({
             ...dataset,
             values: LTTB(dataset.values, n)
-        }))
+        })) as RecordSamplerDataset[];
     }
 }
