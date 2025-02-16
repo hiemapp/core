@@ -9,7 +9,7 @@ export type DeviceDriverManifestRecordingField = {
     name: string;
     type?: typeof fieldTypes[keyof typeof fieldTypes];
     color?: Color;
-    primary?: boolean;
+    hiddenByDefault?: boolean;
 
     /** 
      * The id used for storing records as CSV. 
