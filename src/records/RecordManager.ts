@@ -304,9 +304,10 @@ export default class RecordManager {
     }
 
     /**
-     * Archive the current memory.
+     * Save the recordings that are currently stored in memory.
+     * @returns The number of records that were in memory.
      */
-    async archiveMemory() {
+    async archiveMemory(): Promise<number> {
         // Copy and empty the memory
         const memory = [...this.memory];
         this.memory = [];
@@ -316,6 +317,8 @@ export default class RecordManager {
         await this.archiveRecords(memory);
         
         this.device.logger.debug(`Saving ${memory.length} record(s) took ${Date.now()-start}ms...`);
+
+        return memory.length;
     }
 
     /**
