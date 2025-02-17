@@ -1,5 +1,7 @@
 import { ModelWithPropsType } from '~/lib/ModelWithProps';
 
+export type UserPermissionAction = 'view' | 'interact' | 'manage';
+
 export interface UserType extends ModelWithPropsType {
     id: number;
     props: UserProps;
