@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "mains": {
-    "development": "./src/index.ts",
-    "production": "./dist/index.js"
-  },
   "license": "MIT",
   "scripts": {
     "build": "tsc && tsconfig-replace-paths && rollup -c"

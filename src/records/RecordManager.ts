@@ -14,11 +14,7 @@ import { Config } from '~/lib';
 import LocalRecordArchiver from './archivers/LocalRecordArchiver';
 import RecordArchiver from './archivers/RecordArchiver';
 import MsgpackRecordParser from './parsers/MsgpackRecordParser';
-
-export interface RecordManagerField {
-    name: string;
-    id: number;
-}
+import { DeviceDriverManifest, DeviceDriverManifestRecordingField } from '~/devices';
 
 export type RecordManagerSortMode = 'TIME_DESCENDING' | 'TIME_ASCENDING';
 export type RecordManagerSortFunction = (a: ImmutableRecord | MutableRecord, b: ImmutableRecord | MutableRecord) => boolean;
@@ -47,7 +43,7 @@ export default class RecordManager {
 
     private memory: ImmutableRecord[] = [];
     protected index: Manifest<RecordIndex>;
-    public fields: RecordManagerField[] = [];
+    public fields: DeviceDriverManifestRecordingField[] = [];
 
     protected __flushTimeoutId: NodeJS.Timeout;
     protected latestRecord: ImmutableRecord;
@@ -100,6 +96,23 @@ export default class RecordManager {
         } catch (err: any) {
             this.device.logger.error(`An error occured while storing ${record}: ${err.message}.`);
         }
+    }
+    
+    /**
+     * Read records for a specific day.
+     * @param day The day of the records to read.
+     * @returns The records for the given day.
+     */
+    readDay(day: Date) {
+        return this.readPeriod(dayjs(day).startOf('day').toDate(), dayjs(day).endOf('day').toDate())
+    }
+    
+    /**
+     * Read records for today.
+     * @returns The records for today.
+     */
+    readToday() {
+        return this.readDay(new Date());
     }
 
     /**
@@ -291,9 +304,10 @@ export default class RecordManager {
     }
 
     /**
-     * Archive the current memory.
+     * Save the recordings that are currently stored in memory.
+     * @returns The number of records that were in memory.
      */
-    async archiveMemory() {
+    async archiveMemory(): Promise<number> {
         // Copy and empty the memory
         const memory = [...this.memory];
         this.memory = [];
@@ -303,6 +317,8 @@ export default class RecordManager {
         await this.archiveRecords(memory);
         
         this.device.logger.debug(`Saving ${memory.length} record(s) took ${Date.now()-start}ms...`);
+
+        return memory.length;
     }
 
     /**
@@ -332,13 +348,5 @@ export default class RecordManager {
     protected _groupRecords(records: ImmutableRecord[]): { date: Date, records: ImmutableRecord[] }[] {
         const groupedRecords = _.groupBy(records, rd => dayjs(rd.getDate()).format('YYYY-MM-DD'));
         return _.map(_.entries(groupedRecords), ([k, v]) => ({ date: new Date(k), records: v }))
-    }
-
-    getField(search: Partial<RecordManagerField>) {
-        const field = this.fields.find(f => f.name === search.name || f.id === search.id);
-        if (!field) {
-            throw new Error(`Cannot find field with '${JSON.stringify(search)}'.`);
-        }
-        return field;
     }
 }

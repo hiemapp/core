@@ -6,14 +6,16 @@ import UserController from './UserController';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { dirs } from '~/utils/paths';
 import Model from '~/lib/Model';
-import type { UserType } from './User.types';
+import type { UserPermissionAction, UserType } from './User.types';
+import { minimatch } from 'minimatch';
 
 export default class User extends ModelWithProps<UserType> {
     __modelConfig(): ModelWithPropsConfig<UserType> {
         return {
             controller: UserController,
             defaults: {
-                name: null,
+                firstName: null,
+                lastName: null,
                 username: 'user',
                 permissions: {},
                 settings: {},
@@ -25,43 +27,38 @@ export default class User extends ModelWithProps<UserType> {
         }
     }
 
-    hasPermission<TModel extends Model<any>>(model: TModel, action: 'view' | 'input'): boolean;
+    hasPermission<TModel extends Model<any>>(resource: TModel, action: UserPermissionAction): boolean;
     hasPermission(key: string): boolean;
     hasPermission(...args: any[]) {
         let key: string;
 
-        if(typeof args[0] === 'string') {
+        if (typeof args[0] === 'string') {
             key = args[0];
-        } else if(args[0] instanceof Model) {
-            const model = args[0];
+        } else if (args[0] instanceof Model) {
+            const resource = args[0];
             const action = args[1];
-            key = `${model.constructor.name}.${model.id}.${action}`;
+            key = `${resource.constructor.name.toLowerCase()}.${resource.id}.${action}`;
         } else {
             return false;
         }
 
         const permissions = this.getProp('permissions');
-
-        if (!permissions || !_.isPlainObject(permissions)) return false;
-
         if (typeof permissions[key] === 'boolean') return permissions[key] === true;
 
-        const parts = key.split('.');
-        for (let i = parts.length; i >= 0; i--) {
-            const permissionWithWildcard = _.trimStart(parts.slice(0, i).join('.') + '.*', '.');
-
-            if (permissions[permissionWithWildcard] != undefined) return permissions[permissionWithWildcard] === true;
+        for(const selector in permissions) {
+            if(!minimatch(key, selector)) continue;
+            return permissions[selector];
         }
 
         return false;
     }
 
-    getName() { 
-        return this.getProp('name'); 
+    getName() {
+        return this.getProp('name');
     }
-    
-    getUsername() { 
-        return this.getProp('username'); 
+
+    getUsername() {
+        return this.getProp('username');
     }
 
     getSetting(key: string) {
@@ -93,7 +90,7 @@ export default class User extends ModelWithProps<UserType> {
     verifyPasswordTimeSafe(password: string): Promise<boolean> {
         return new Promise((resolve, reject) => {
             const hash = this.getProp('password');
-            
+
             if (typeof hash !== 'string') {
                 return reject('noPasswordSet');
             }

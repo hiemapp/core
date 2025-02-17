@@ -10,3 +10,7 @@ export { default as DeviceCommandExecutionError } from './DeviceCommandExecution
 export { default as DeviceInvalidTraitError } from './DeviceInvalidTraitError';
 export { default as ValueAssertionError } from './ValueAssertionError';
 export { default as DeviceInvalidParamError } from './DeviceInvalidParamError';
+export { default as PermissionManageError } from './PermissionManageError';
+export { default as PermissionViewError } from './PermissionViewError';
+export { default as PermissionError } from './PermissionError';
+export { default as PermissionInteractError } from './PermissionInteractError';

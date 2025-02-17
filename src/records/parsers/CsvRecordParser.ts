@@ -4,16 +4,20 @@ import radix64 from '~/utils/radix64';
 import _ from 'lodash';
 import { stringify as stringifyCsv } from 'csv-stringify';
 import { parse as parseCsv } from 'csv-parse';
+import { DeviceDriverManifestRecordingField } from '~/devices';
 
 export default class CsvRecordParser extends RecordParser {
     PARSER_ID = 'csv';
 
     protected CELL_DELIMITER = ';';
 
-    protected fieldAliases: { name: string, alias: string, id: number}[] = [];
+    protected fieldAliases: Array<DeviceDriverManifestRecordingField & { alias: string }> = [];
 
     async init() {
-        this.fieldAliases = this.manager.fields.map(field => ({ ...field, alias: String.fromCharCode(field.id + 65) }));
+        this.manager.fields.forEach(field => {
+            if(typeof field.id !== 'number') return;
+            this.fieldAliases.push({ ...field, alias: String.fromCharCode(field.id + 65) })
+        })
     }
 
     async decompress(buffer: Buffer) {
@@ -44,6 +48,7 @@ export default class CsvRecordParser extends RecordParser {
         })
     }
 
+    /** @deprecated */
     compress(records: ImmutableRecord[]) {
         return new Promise<Buffer>((resolve, reject) => {
             const lines = records.map(record => {
