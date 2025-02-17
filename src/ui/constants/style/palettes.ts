@@ -2,6 +2,7 @@ export class Palette {
     [key: number]: string;
     length: number;
     id: string;
+    default: string;
 
     constructor(id: string, length: number) {
         this.id = id;
@@ -10,6 +11,8 @@ export class Palette {
         for (let i = 0; i < length; i++) {
             this[i] = `$${this.id}-${i}`
         }
+
+        this.default = this[Math.round(length / 2)];
     }
 
     toString() {
