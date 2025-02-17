@@ -19,6 +19,9 @@ export default class MutableRecord extends ImmutableRecord {
             throw new Error(`Invalid value for field '${fieldName}': ${value}`);
         }
 
+        // fix 0.1 + 0.2 = 0.300000000004 or 0.79999999999999
+        value = _.round(value, 8);
+
         this._values[fieldName] = value;
     }
 
