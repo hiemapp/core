@@ -1,7 +1,7 @@
-import ControllerDatabase from '../lib/ControllerDatabase';
+import DatabaseController from '../lib/DatabaseController';
 import Device from './Device';
 
-export default class DeviceController extends ControllerDatabase<Device>() {
+export default class DeviceController extends DatabaseController<Device>() {
     static table = 'devices';
 
     static load() {

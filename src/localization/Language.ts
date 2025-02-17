@@ -1,25 +1,14 @@
-import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
-import LanguageController from './LanguageController';
+import ModelWithProps from '../lib/ModelWithProps';
 import { LanguageId, NestedMessages } from './LanguageMessages';
 import _ from 'lodash';
 import { LanguageType } from './Language.types';
+import { z } from 'zod';
 
 export default class Language extends ModelWithProps<LanguageType> {
-    __modelConfig(): ModelWithPropsConfig<LanguageType> {
-        return {
-            controller: LanguageController,
-            defaults: {
-                messages: {}
-            }
-        }
-    };
-
-    constructor(key: LanguageId) {
-        super(key, {
-            messages: {},
-        });
-    }
-
+    protected $schema = z.object({
+        messages: z.record(z.string(), z.any())
+    })
+    
     addMessages(messages: NestedMessages, scope: string): void {
         let scopedMessages: Record<string, any> = {};
 

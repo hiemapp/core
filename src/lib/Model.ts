@@ -1,6 +1,8 @@
 import * as _ from 'lodash';
 import Logger, { logger } from './Logger';
 import ModelEvent from './ModelEvent';
+import * as hiem from '~/index';
+import { ControllerType } from './Controller';
 
 export type InferModelType<TModel> = TModel extends Model<infer T> ? T : never;
 export type EventName<TModel> = keyof InferModelType<TModel>['events'] & string;
@@ -26,16 +28,15 @@ export interface ModelEventListenerOptions {
 }
 
 abstract class Model<T extends ModelType> {
-    protected __modelId: T['id'];
-    protected __modelConfig(): ModelConfig { return {}; };
+    protected readonly $id: T['id'];
 
     private __eventListeners: Record<string, ModelEventListener[] | undefined> = {};
-    get id() { return this.__modelId };
+    get id() { return this.$id };
 
     logger: Logger;
 
     constructor(id: T['id']) {
-        this.__modelId = id;
+        this.$id = id;
         this.logger = logger.child({ label: this.toString() });
     }
 

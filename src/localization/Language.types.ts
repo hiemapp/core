@@ -1,10 +1,8 @@
-import { ModelWithPropsType } from '~/lib/ModelWithProps';
 import { LanguageId, NestedMessages } from './LanguageMessages';
 
-export interface LanguageType extends ModelWithPropsType {
+export interface LanguageType {
     id: LanguageId,
-    props: LanguageProps,
-    serializedProps: LanguagePropsSerialized
+    events: {}
 }
 
 interface LanguageProps {

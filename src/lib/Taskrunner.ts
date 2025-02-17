@@ -123,7 +123,7 @@ class Taskrunner {
         delete this.taskState[uuid];
 
         // Delete task from database
-        await Database.query('DELETE FROM `tasks` WHERE `uuid` = ? ', [uuid]);
+        await Database.knex('tasks').where({ uuid }).delete()
 
         // this.logger.debug(`Deleted task '${uuid}'.`);
     }
@@ -154,8 +154,7 @@ class Taskrunner {
         // Don't add timed tasks with a short lifespan to the database
         if(task.date && this.getTimeUntil(task.date) < this.TASK_MIN_LIFESPAN_FOR_DATABASE) return false;
         
-        const fields = Database.serializeFields(task);
-        await Database.query(`INSERT INTO \`tasks\` SET ${fields}`);
+        await Database.knex('tasks').insert(task)
         return true;
     }
 
@@ -263,7 +262,7 @@ class Taskrunner {
     static async fetchTasks(): Promise<void> {
         this.logger.debug('Fetching tasks from database.');
 
-        const rows = await Database.query('SELECT * FROM `tasks`');
+        const rows = await Database.knex('tasks').select()
         rows.forEach(row => {
             this.tasks[row.uuid] = row;
         })

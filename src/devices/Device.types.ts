@@ -1,14 +1,11 @@
-import { ModelWithPropsType } from '~/lib/ModelWithProps';
 import type { Icon } from '~/ui';
 import type { ModelEventReason } from '~/lib/ModelEvent';
 import DeviceTrait from './DeviceTrait/DeviceTrait';
 import { DeviceTrait_config } from './DeviceTrait/DeviceTrait.types';
 import DeviceDisplay, { DeviceDisplayRecord, DeviceDisplaySerialized, DeviceDisplayTextList } from './DeviceDisplay';
 
-export type DeviceType = ModelWithPropsType & {
+export type DeviceType = {
     id: number,
-    props: DeviceProps,
-    serializedProps: DevicePropsSerialized,
     events: {
         'input': {
             name: string,
@@ -42,7 +39,6 @@ export type DeviceType = ModelWithPropsType & {
 }
 
 export interface DeviceProps {
-    id: number;
     name: string;
     icon: Icon;
     color: string;

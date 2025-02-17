@@ -1,7 +1,7 @@
-import ControllerDatabase from '../lib/ControllerDatabase';
+import DatabaseController from '../lib/DatabaseController';
 import Connector from './Connector';
 
-export default class ConnectorController extends ControllerDatabase<Connector>() {
+export default class ConnectorController extends DatabaseController<Connector>() {
     static table = 'connectors';
 
     static load() {

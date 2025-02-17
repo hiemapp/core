@@ -5,7 +5,7 @@ import DeviceController from './DeviceController';
 import RecordManager from '../records/RecordManager';
 import _ from 'lodash';
 import type { DeviceType } from './Device.types';
-import type { ModelWithPropsConfig } from '~/lib/ModelWithProps';
+import type {  DynamicProps } from '~/lib/ModelWithProps';
 import type { ModelEventReason } from '~/lib/ModelEvent';
 import { palettes } from '~/ui/constants/style';
 import DeviceConnectionError from '~/errors/DeviceConnectionError';
@@ -18,52 +18,42 @@ import DeviceDisplay from './DeviceDisplay';
 import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
 import { User } from '~/users';
 import ConnectorController from '~/connectors/ConnectorController';
+import { z } from 'zod';
 
-export default class Device extends ModelWithProps<DeviceType> {   
-    __modelConfig(): ModelWithPropsConfig<DeviceType> {
-        return {
-            controller: DeviceController,
-            filterProps: {
-                name: false
-            },
-            dynamicProps: {
-                connection: () => {
-                    return {
-                        isOpen: this.isConnected()
-                    }
-                },
-                state: () => {
-                    return this.getState();
-                },
-                display: () => {
-                    return this.getDisplay();
-                },
-                traits: () => {
-                    return this.getTraits().map(trait => trait.toJSON())
-                }
-            },
-            defaults: {
-                name: 'Unknown device',
-                icon: 'circle-question',
-                color: 'blue',
-                driver: {
-                    type: null,
-                    options: {}
-                },
-                connectorId: null,
-                options: {
-                    recording: {
-                        enabled: false,
-                        cooldown: 5,
-                        flushThreshold: 5
-                    },
-                    dummy: false,
-                    pingInterval: 0
-                },
-                metadata: {}
-            }
-        }
-    };
+export default class Device extends ModelWithProps<DeviceType> {
+    protected $schema = z.object({
+        name: z.string().nullable(),
+        color: z.string().nullable(),
+        icon: z.string().default('car'),
+        driver: z.object({
+            type: z.string().nullable(),
+            options: z.object({})
+        }),
+        connectorId: z.number().nullable(),
+        options: z.object({
+            recording: z.object({
+                enabled: z.boolean().default(false)
+            }),
+            dummy: z.boolean().default(false),
+            pingInterval: z.number().default(0)
+        }),
+        metadata: z.object({}),
+        connection: z.object({
+            isOpen: z.boolean()
+        }),
+        state: z.object({}),
+        display: z.object({}),
+        traits: z.array(z.any())
+    })
+
+    protected $dynamicProps: DynamicProps<Device> = {
+        connection: () => ({ 
+            isOpen: this.isConnected() 
+        }),
+        state: () => this.getState(),
+        display: () => this.getDisplay(),
+        traits: () => this.getTraits().map(trait => trait.toJSON())
+    }
 
     get driver() { return this._driver };
     protected _driver: DeviceDriver;
@@ -82,11 +72,13 @@ export default class Device extends ModelWithProps<DeviceType> {
             this.initConnector();
             this.initPinger();
 
-            this._driver.$module.methods.addDevice(this);
+            if (this._driver) {
+                this._driver.$module.methods.addDevice(this);
+            }
 
             await this.initRecordManager();
 
-            if(!this.isConnected()) return;
+            if (!this.isConnected()) return;
         } catch (err: any) {
             this.logger.error('Initialization error:', err);
         }
@@ -95,7 +87,7 @@ export default class Device extends ModelWithProps<DeviceType> {
     getTrait<TTrait extends DeviceTrait<any>>(traitClass: Constructor<TTrait>): TTrait {
         const trait = this.getTraitOrFail(traitClass);
 
-        if(!(trait instanceof traitClass)) {
+        if (!(trait instanceof traitClass)) {
             throw new DeviceInvalidTraitError(this, traitClass);
         }
 
@@ -111,7 +103,7 @@ export default class Device extends ModelWithProps<DeviceType> {
     }
 
     getTraits(): DeviceTrait<any>[] {
-        if(!this._driver) return [];
+        if (!this._driver) return [];
         return this._driver.getManifest(this).getArr('traits');
     }
 
@@ -137,7 +129,7 @@ export default class Device extends ModelWithProps<DeviceType> {
             const newState = trait.getState(this);
 
             // Later traits shoudn't overwrite the existing state
-            state = {...newState, ...state};
+            state = { ...newState, ...state };
         })
 
         return state;
@@ -149,7 +141,7 @@ export default class Device extends ModelWithProps<DeviceType> {
         const traits = this.getTraits();
         traits.forEach(trait => {
             const result = trait.getDisplay(this, display);
-            if(result instanceof DeviceDisplay) {
+            if (result instanceof DeviceDisplay) {
                 display = result;
             }
         })
@@ -158,29 +150,29 @@ export default class Device extends ModelWithProps<DeviceType> {
     }
 
     getDriverConfig<TOptions extends Record<string, any>>() {
-        return this.getProp('driver') as { type: string|null, options: TOptions };
+        return this.getProp('driver') as { type: string | null, options: TOptions };
     }
 
     isConnected() {
-        if(!this._driver) return false;
+        if (!this._driver) return false;
 
-        if(this.hasConnector) {
-            if(!this._connector || !this._connector.isReady()) return false;
+        if (this.hasConnector) {
+            if (!this._connector || !this._connector.isReady()) return false;
         }
-        
-        if(this._driver.$module.methods.hasProvider('checkConnection')) {
-            if(this._driver.$module.methods.callProvider('checkConnection', [ this ]) !== true) {
+
+        if (this._driver.$module.methods.hasProvider('checkConnection')) {
+            if (this._driver.$module.methods.callProvider('checkConnection', [this]) !== true) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
     async execute(command: string, paramsObj: any, reason?: ModelEventReason): Promise<void> {
         return new Promise<void>(async (resolve, reject) => {
             this.logger.debug('Executing command', command, 'with params', paramsObj, 'and reason', reason ? reason.toString() : null);
-            if(!this.isConnected()) {
+            if (!this.isConnected()) {
                 reject(new DeviceConnectionError(this));
                 return;
             }
@@ -191,45 +183,45 @@ export default class Device extends ModelWithProps<DeviceType> {
                 return hasCommand;
             })
 
-            if(!trait) {
+            if (!trait) {
                 reject(new DeviceCommandNotSupportedError(this));
                 return;
             }
 
             // Store the old states so they can be reverted in case of an error.
             const oldStates: Array<[DeviceTrait<any>, any]> = traits.map(trait => {
-                return [ trait, trait.getState(this) ]
+                return [trait, trait.getState(this)]
             });
 
             const params = new DeviceCommandParams(paramsObj);
-            
+
             try {
                 this.emit('execute:start', { command, params });
 
                 const traitHandler = trait.commandRegistry[command];
-                if(typeof traitHandler === 'function') {
+                if (typeof traitHandler === 'function') {
                     await traitHandler(this, params);
                 }
 
                 let driverResult: any;
-                if(this.driver.$module.methods.hasProvider(`commands.${command}`)) {
-                    driverResult = this.driver.$module.methods.callProvider(`commands.${command}`, [ this, params ]);
+                if (this.driver.$module.methods.hasProvider(`commands.${command}`)) {
+                    driverResult = this.driver.$module.methods.callProvider(`commands.${command}`, [this, params]);
                 }
 
                 // The driver should perform calls to .setState() immediately,
                 // so we can emit the update before awaiting the promise.
                 this.emit('state:update', { reason: 'execute' });
 
-                if(driverResult instanceof Promise) {
+                if (driverResult instanceof Promise) {
                     await driverResult;
                 }
 
                 this.emit('execute:done', { command, params, success: true });
 
                 resolve();
-            } catch(err: any) {
+            } catch (err: any) {
                 // Revert the state of every trait
-                oldStates.forEach(([ trait, oldState ]) => {
+                oldStates.forEach(([trait, oldState]) => {
                     trait.setState(this, oldState, false);
                 })
 
@@ -320,12 +312,12 @@ export default class Device extends ModelWithProps<DeviceType> {
     protected initPinger(): void {
         const pingInterval = this.getOption('pingInterval');
 
-        if(typeof pingInterval === 'number' && pingInterval > 0) {  
+        if (typeof pingInterval === 'number' && pingInterval > 0) {
             this.emit('ping', {});
 
             setInterval(() => {
                 this.emit('ping', {});
-            }, pingInterval*1000);
+            }, pingInterval * 1000);
 
             this.logger.debug(`Pinger initialized to run every ${pingInterval}s.`);
         }
@@ -355,30 +347,30 @@ export default class Device extends ModelWithProps<DeviceType> {
     /**
      * Initialize the connector.
      */
-    protected initConnector() { 
+    protected initConnector() {
         const connectorId = this.getProp('connectorId');
-        if(!connectorId) {
+        if (!connectorId) {
             this.logger.notice('No connector specified.');
             return false;
         }
 
-        this._connector = ConnectorController.find(connectorId);    
+        this._connector = ConnectorController.find(connectorId);
 
-        if(!this.connector.isInitialized()) {
+        if (!this.connector.isInitialized()) {
             // Get the connectors's default protocol config
             let protocolConfig = this.connector.getProp('protocol');
 
             // Allow the driver to modify the protocol config
-            if(this.driver.$module.methods.hasProvider('getProtocolConfig')) {
+            if (this.driver.$module.methods.hasProvider('getProtocolConfig')) {
                 this.connector.logger.debug(`Getting protocol config from ${this.driver} (from ${this}).`);
-                protocolConfig = this.driver.$module.methods.callProvider('getProtocolConfig', [ this, protocolConfig ]);
+                protocolConfig = this.driver.$module.methods.callProvider('getProtocolConfig', [this, protocolConfig]);
             }
 
             if (typeof protocolConfig?.type !== 'string') {
                 this.logger.notice('No protocol config specified.');
                 return false;
             }
-            
+
             // Initialize the connector with the new protocol config
             this.connector.initialize(protocolConfig);
 

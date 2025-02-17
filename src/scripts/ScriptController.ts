@@ -1,7 +1,7 @@
-import ControllerDatabase from '../lib/ControllerDatabase';
+import DatabaseController from '../lib/DatabaseController';
 import Script from './Script';
 
-export default class ScriptController extends ControllerDatabase<Script>() {
+export default class ScriptController extends DatabaseController<Script>() {
     static table = 'scripts';
 
     static load() {

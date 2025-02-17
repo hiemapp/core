@@ -1,31 +1,24 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as _ from 'lodash';
-import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
-import UserController from './UserController';
+import ModelWithProps from '../lib/ModelWithProps';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { dirs } from '~/utils/paths';
 import Model from '~/lib/Model';
 import type { UserPermissionAction, UserType } from './User.types';
 import { minimatch } from 'minimatch';
+import z from 'zod';
 
 export default class User extends ModelWithProps<UserType> {
-    __modelConfig(): ModelWithPropsConfig<UserType> {
-        return {
-            controller: UserController,
-            defaults: {
-                firstName: null,
-                lastName: null,
-                username: 'user',
-                permissions: {},
-                settings: {},
-                password: null
-            },
-            filterProps: {
-                password: false
-            }
-        }
-    }
+    protected $schema = z.object({
+        name: z.string().nullable(),
+        username: z.string().nullable(),
+        permissions: z.record(z.string(), z.boolean()).default({
+            'device.*.view': true
+        }),
+        settings: z.record(z.string(), z.any()),
+        password: z.string().nullable()
+    })
 
     hasPermission<TModel extends Model<any>>(resource: TModel, action: UserPermissionAction): boolean;
     hasPermission(key: string): boolean;
@@ -66,7 +59,7 @@ export default class User extends ModelWithProps<UserType> {
     }
 
     getPicturePath() {
-        const filepath = path.resolve(dirs().STATIC, 'users', 'pictures', this.__modelId + '.jpg');
+        const filepath = path.resolve(dirs().STATIC, 'users', 'pictures', this.$id + '.jpg');
         if (!fs.existsSync(filepath)) return null;
 
         return filepath;

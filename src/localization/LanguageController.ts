@@ -4,10 +4,11 @@ import Controller from '../lib/Controller';
 import LanguageMessages, { LANGUAGE_IDS } from './LanguageMessages';
 import Language from './Language';
 import * as _ from 'lodash';
-import Locale from './Language';
 
 export default class LanguageController extends Controller<Language>() {
     static load() {
+        super.load();
+
         let languages: Record<string, Language> = {};
 
         LANGUAGE_IDS.forEach(id => {

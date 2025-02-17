@@ -1,19 +1,17 @@
-import ModelWithProps, { ModelWithPropsConfig, ModelWithPropsType } from '~/lib/ModelWithProps';
+import ModelWithProps, { InferSchema } from '~/lib/ModelWithProps';
 import ConnectorProtocol from './ConnectorProtocol';
 import ConnectorController from './ConnectorController';
 import { ExtensionController } from '~/extensions';
 import _ from 'lodash';
+import { z } from 'zod';
 
 export type ProtocolConfig = {
     type: string|null;
     options: Record<string, any>
 };
 
-export interface ConnectorType extends ModelWithPropsType {
+export interface ConnectorType {
     id: number;
-    props: {
-        protocol: ProtocolConfig|null
-    },
     events: {
         'ready': void,
         'stop': void,
@@ -26,20 +24,17 @@ export interface ConnectorType extends ModelWithPropsType {
 }
 
 export default class Connector extends ModelWithProps<ConnectorType> {
+    protected $schema = z.object({
+        protocol: z.object({
+            type: z.string().nullable(),
+            options: z.object({})
+        })
+    })
+
     public protocol: ConnectorProtocol;
 
-    protected _protocolConfig: ConnectorType['props']['protocol']|null = null;
+    protected _protocolConfig: InferSchema<Connector>['protocol']|null = null;
     protected _isReady: boolean = false;
-
-    __modelConfig(): ModelWithPropsConfig<ConnectorType> {
-        return {
-            controller: ConnectorController,
-            defaults: {
-                protocol: null
-            }
-        }
-    }
-
     /**
      * Check if the connector has been initialized yet.
      * @returns Whether the connector has been initialized yet.
