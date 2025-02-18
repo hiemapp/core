@@ -1,6 +1,5 @@
-import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
+import ModelWithProps from '../lib/ModelWithProps';
 import _ from 'lodash';
-import FlowController from './FlowController';
 import { FlowType } from './Flow.types';
 import FlowBlockContext from './FlowBlockContext/FlowBlockContext';
 import BlocklyTranspiler, { type BlocklySerializedWorkspace } from './BlocklyTranspiler';
@@ -9,33 +8,32 @@ import Taskrunner, { Task } from '../lib/Taskrunner';
 import ExtensionController from '../extensions/ExtensionController';
 import FlowBlock from './FlowBlock';
 import Taskmanager from '~/lib/TaskManager';
+import { z } from 'zod';
 
 export default class Flow extends ModelWithProps<FlowType> {
-    taskManager: Taskmanager;
-    protected context: { blocks: Record<string, FlowBlockContext>, flow: FlowContext };
-
-    __modelConfig(): ModelWithPropsConfig<FlowType> {
-        return {
-            controller: FlowController,
-            defaults: {
-                name: '',
-                icon: '',
-                state: {
-                    languageVersion: 0,
-                    blocks: []
-                },
-                workspace: {
-                    json: {
-                        fields: {
-                            trigger: { blocks: [] },
-                            condition: { blocks: [] },
-                            action: { blocks: []}
-                        }
-                    }
+    protected $schema = z.object({
+        name: z.string().nullable(),
+        icon: z.string().nullable(),
+        state: z.object({
+            languageVersion: z.number(),
+            blocks: z.array(z.any())
+        }).default({
+            languageVersion: 0,
+            blocks: []
+        }),
+        workspace: z.object({}).default({
+            json: {
+                fields: {
+                    trigger: { blocks: [] },
+                    condition: { blocks: [] },
+                    action: { blocks: []}
                 }
             }
-        }
-    }
+        })
+    })
+
+    taskManager: Taskmanager;
+    protected context: { blocks: Record<string, FlowBlockContext>, flow: FlowContext };
     
     async __init() {
         this.taskManager = new Taskmanager(`flows.flow${this.id}`);

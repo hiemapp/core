@@ -1,5 +1,7 @@
-import { NotificationProps } from '~/notifications/Notification.types' 
-import ModelWithProps from '~/lib/ModelWithProps';import { Icon } from '~/ui';
+import ModelWithProps from '~/lib/ModelWithProps';
+import { Icon } from '~/ui';
+import { InferSchema } from '~/lib/ModelWithProps';
+import { Notification } from '~/notifications';
 import _ from 'lodash';
 
 export interface CustomErrorOptions {
@@ -31,7 +33,7 @@ export default class CustomError extends Error {
         return this.options.message;
     }
 
-    getNotificationMessage(): NotificationProps['message'] {
+    getNotificationMessage(): InferSchema<Notification>['message'] {
         // Deduce the model type from the error name:
         // - 'DeviceConnectionError' -> 'device'
         // - 'ExtensionModuleNotRegisteredError' -> 'extension'

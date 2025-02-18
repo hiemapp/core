@@ -11,7 +11,8 @@ import z from 'zod';
 
 export default class User extends ModelWithProps<UserType> {
     protected $schema = z.object({
-        name: z.string().nullable(),
+        firstName: z.string().nullable(),
+        lastName: z.string().nullable(),
         username: z.string().nullable(),
         permissions: z.record(z.string(), z.boolean()).default({
             'device.*.view': true
@@ -34,7 +35,6 @@ export default class User extends ModelWithProps<UserType> {
         } else {
             return false;
         }
-
         const permissions = this.getProp('permissions');
         if (typeof permissions[key] === 'boolean') return permissions[key] === true;
 

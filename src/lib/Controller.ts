@@ -4,13 +4,13 @@ import ModelWithProps from './ModelWithProps';
 import ControllerRegister from './ControllerRegister';
 
 export type FilterPredicate<TModel> = (model: TModel) => boolean | string | number | void | null;
-export type ControllerType = ReturnType<typeof Controller>;
+export type ControllerType<T extends Model<any> = Model<any>> = ReturnType<typeof Controller<T>>;
 
 export default function Controller<T extends Model<any>>() {
     type TId = InferModelType<T>['id'];
     
     abstract class Controller {
-        static data: Record<TId, T>;
+        static data: Record<TId, T> = {} as any;
 
         static index(): T[] {
             return Object.values(this.indexObject());
@@ -48,14 +48,27 @@ export default function Controller<T extends Model<any>>() {
             return null;
         }
 
+        /**
+         * Update a resource.
+         * @param resource The resource to update.
+         */
         static update(resource: T) {}
 
+        /**
+         * Check if a resource exists.
+         * @param id The id of the resoure to find.
+         * @returns Whether the resource exists.
+         */
         static exists(id: TId): boolean {
-            return this.find(id) != undefined;
+            return (id in this.indexObject());
         }
 
-        static store(data: Record<TId, T>): void {
-            this.data = data;
+        /**
+         * Add a new resource to the controller.
+         * @param resource The resource to add.
+         */
+        static add(resource: T) {
+            this.data[resource.id as TId] = resource;
         }
 
         static load(...args: any[]): void;

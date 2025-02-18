@@ -1,11 +1,9 @@
-import { ModelWithPropsType } from '~/lib/ModelWithProps';
 import { FlowBlockDef } from './FlowBlockDef.types';
 import { BlocklySerializedWorkspace } from './BlocklyTranspiler';
 
-export interface FlowType extends ModelWithPropsType {
+export interface FlowType {
     id: number,
-    props: FlowProps,
-    serializedProps: FlowProps
+    events: {}
 }
 
 export interface FlowProps {

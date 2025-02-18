@@ -60,7 +60,7 @@ class Extension extends Model<ExtensionType> {
         const module = this.getModuleOrFail(type, name);
 
         if (!module) {
-            throw new ExtensionModuleNotRegisteredError(`${type.name} '${this.__modelId}.${name}' is not registered.`);
+            throw new ExtensionModuleNotRegisteredError(`${type.name} '${this.id}.${name}' is not registered.`);
         }
 
         return module;

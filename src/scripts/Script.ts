@@ -1,4 +1,4 @@
-import ModelWithProps, { ModelWithPropsConfig } from '../lib/ModelWithProps';
+import ModelWithProps from '../lib/ModelWithProps';
 import _ from 'lodash';
 import { ScriptType } from './Script.types';
 import ScriptController from './ScriptController';
@@ -8,24 +8,20 @@ import ScriptApi from './ScriptApi';
 import ScriptEventListenerManager from './ScriptEventListenerManager';
 import { Notification } from '~/notifications';
 import { User, UserController } from '~/users';
+import { z } from 'zod';
 
 export default class Script extends ModelWithProps<ScriptType> {
+    protected $schema = z.object({
+        name: z.string().nullable(),
+        icon: z.string().nullable(),
+        code: z.string().default(''),
+        userId: z.number()
+    })
+
     taskManager: TaskManager;
     eventListeners: ScriptEventListenerManager;
 
     protected _context: vm.Context;
-
-    __modelConfig(): ModelWithPropsConfig<ScriptType> {
-        return {
-            controller: ScriptController,
-            defaults: {
-                name: '',
-                icon: '',
-                code: '',
-                userId: null
-            }
-        }
-    }
 
     async __init() {
         this.taskManager = new TaskManager(`scripts.${this.id}`);

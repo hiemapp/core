@@ -20,18 +20,12 @@ export default class ExtensionController extends Controller<Extension>() {
                 absolute: true 
             });
 
-            let data: Record<string, Extension> = {};
-
             for (const filepath of manifestFilepaths) {
                 const manifest = await Manifest.fromFile(filepath);
 
                 const extension = new Extension(manifest, path.dirname(filepath));
-
-                data[extension.id] = extension;
+                this.add(extension);
             }
-
-            // Store the extensions.
-            super.store(data);
 
             // Activate all the extensions.
             await Promise.all(this.index().map(async ext => {

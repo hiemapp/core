@@ -63,7 +63,7 @@ class Device extends ModelWithProps_SA<Device2> {
     /**
      * The name of the device.
      */
-    get name(): string { return this._model.getProp('name'); }
+    get name(): string { return this._model.getProp('name')!; }
 
     /**
      * Set the name of the device.
@@ -87,7 +87,7 @@ class Device extends ModelWithProps_SA<Device2> {
     /**
      * The color of the device.
      */
-    get color(): string { return this._model.getProp('color'); }
+    get color(): string { return this._model.getProp('color')!; }
 
     /**
      * Set the color of the device.

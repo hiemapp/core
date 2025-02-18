@@ -9,8 +9,6 @@ export default class LanguageController extends Controller<Language>() {
     static load() {
         super.load();
 
-        let languages: Record<string, Language> = {};
-
         LANGUAGE_IDS.forEach(id => {
             const language = new Language(id);
 
@@ -22,9 +20,7 @@ export default class LanguageController extends Controller<Language>() {
                 language.addMessages(messages.$module.methods.getMessages(), scope);
             });
 
-            languages[id] = language;
+            this.add(language);
         });
-
-        this.store(languages);
     }
 }

@@ -1,9 +1,8 @@
 import Model, { ModelType } from '../lib/Model';
 import { PromiseAllObject } from '../utils/Promise';
 import _ from 'lodash';
-import z, { ZodObject } from 'zod';
+import z from 'zod';
 import { ControllerType } from './Controller';
-import { getDefaults } from '~/utils/zod';
 import { defaultsDeepNull } from '~/utils';
 
 // @ts-ignore (protected property)
@@ -26,20 +25,7 @@ abstract class ModelWithProps<T extends ModelType = any> extends Model<T> {
     }
 
     __init(): void | Promise<void> {}
-
-    static fromProps(this: any, id: any, props: any) {
-        const resource = new this(id);
-
-        if(!(resource.$schema instanceof ZodObject)) {
-            throw new Error(`No '$schema' property defined on model '${resource.constructor.name}'.`)
-        }
-
-        resource.$props = props;
-        resource._defaultProps = getDefaults(resource.$schema);
-
-        return resource;
-    }
-
+    
     /**
      * Get all properties of the model.
      * @returns A copy of the properties of the model.

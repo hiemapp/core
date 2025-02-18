@@ -16,7 +16,8 @@ export default class UserController extends DatabaseController<User>() {
         if(!this.findDefaultUser()) {
             await this.create({ 
                 username: null,
-                name: null,
+                firstName: null,
+                lastName: null,
                 settings: {},
                 permissions: {},
                 password: null 

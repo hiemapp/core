@@ -1,23 +1,4 @@
-import type { ModelWithPropsType } from '~/lib/ModelWithProps';
-import ModelWithProps from '~/lib/ModelWithProps';
-import type { Icon, Palette } from '~/ui';
-
-
-export interface NotificationProps {
-    palette: Palette | null,
-    icon: Icon | null,
-    level: 'info' | 'error' | 'warning' | 'notice',
-    message: string | number | boolean | undefined | null | { 
-        id: string, 
-        values?: Record<string, any>,
-        ctx?: Record<string, ModelWithProps<any>>
-    },
-    body: string,
-    isHTML: boolean
-}
-
-export interface NotificationType extends ModelWithPropsType {
+export interface NotificationType {
     id: string;
-    props: NotificationProps,
-    serializedProps: NotificationProps
+    events: {}
 }

@@ -1,9 +1,5 @@
-import { ModelWithPropsType } from '~/lib/ModelWithProps';
-
-export interface ScriptType extends ModelWithPropsType {
+export interface ScriptType {
     id: number,
-    props: ScriptProps,
-    serializedProps: ScriptProps,
     events: {
         error: {
             error: any

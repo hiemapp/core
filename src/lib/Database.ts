@@ -3,6 +3,14 @@ import * as mysql from 'mysql2';
 import knex, { Knex } from 'knex';
 import { logger } from './Logger';
 
+export interface DatabaseCredentials {
+    host: string;
+    user: string;
+    password: string;
+    database: string;
+    port: number;
+}
+
 export interface IDatabaseFields {
     [key: string]: any
 }
@@ -11,7 +19,30 @@ class Database {
     static knex: Knex;
     static connection: mysql.Connection;
 
+    protected static getCredentials(): DatabaseCredentials {
+        const fields: Record<keyof DatabaseCredentials, string> = {
+            'host': 'DATABASE_HOST',
+            'user': 'DATABASE_USER',
+            'password': 'DATABASE_PASSWORD',
+            'database': 'DATABASE_DATABASE',
+            'port': 'DATABASE_PORT'
+        }
+
+        return _.mapValues(fields, (envKey, key) => {
+            const value = process.env[envKey];
+
+            if(typeof value !== 'string') {
+                if(key === 'port') return;
+                throw new Error(`Invalid value for environment variable ${envKey}: ${value}.`);
+            }
+
+            return key === 'port' ? parseInt(value) : value;
+        }) as DatabaseCredentials;
+    }
+
     static connect() {
+        const { host, user, password, database } = this.getCredentials();
+
         logger.debug(`Connecting to database '${process.env.DATABASE_DATABASE}' as user '${process.env.DATABASE_USER}'...`);
 
 
