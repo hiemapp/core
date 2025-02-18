@@ -10,20 +10,23 @@ import type { ModelEventReason } from '~/lib/ModelEvent';
 import { palettes } from '~/ui/constants/style';
 import DeviceConnectionError from '~/errors/DeviceConnectionError';
 import DeviceCommandNotSupportedError from '~/errors/DeviceCommandNotSupportedError';
-import DeviceTrait from './DeviceTrait/DeviceTrait';
+import DeviceTrait, { DeviceTraitSchema } from './DeviceTrait/DeviceTrait';
 import { Constructor } from '~types/helpers';
 import DeviceInvalidTraitError from '~/errors/DeviceInvalidTraitError';
 import { Connector } from '~/connectors';
-import DeviceDisplay from './DeviceDisplay';
+import DeviceDisplay, { DeviceDisplaySchema } from './DeviceDisplay';
 import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
 import { User } from '~/users';
 import ConnectorController from '~/connectors/ConnectorController';
 import { z } from 'zod';
 
+export const DeviceStateSchema = z.record(z.string(), z.any());
+
 export default class Device extends ModelWithProps<DeviceType> {
     protected $schema = z.object({
-        name: z.string().nullable(),
-        color: z.string().nullable(),
+        id: z.number(),
+        name: z.string().default(''),
+        color: z.string().default('blue'),
         icon: z.string().default('car'),
         driver: z.object({
             type: z.string().nullable(),
@@ -41,9 +44,9 @@ export default class Device extends ModelWithProps<DeviceType> {
         connection: z.object({
             isOpen: z.boolean()
         }),
-        state: z.object({}),
-        display: z.object({}),
-        traits: z.array(z.any())
+        state: DeviceStateSchema,
+        display: DeviceDisplaySchema,
+        traits: z.array(DeviceTraitSchema)
     })
 
     protected $dynamicProps: DynamicProps<Device> = {
@@ -51,7 +54,7 @@ export default class Device extends ModelWithProps<DeviceType> {
             isOpen: this.isConnected() 
         }),
         state: () => this.getState(),
-        display: () => this.getDisplay(),
+        display: () => this.getDisplay().toJSON(),
         traits: () => this.getTraits().map(trait => trait.toJSON())
     }
 
@@ -121,7 +124,7 @@ export default class Device extends ModelWithProps<DeviceType> {
         return this.getProp('icon');
     }
 
-    getState(): Record<string, unknown> {
+    getState(): z.infer<typeof DeviceStateSchema> {
         const traits = this.getTraits();
         let state = {};
 
@@ -146,7 +149,7 @@ export default class Device extends ModelWithProps<DeviceType> {
             }
         })
 
-        return display.serialize();
+        return display;
     }
 
     getDriverConfig<TOptions extends Record<string, any>>() {

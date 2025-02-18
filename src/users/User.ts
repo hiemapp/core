@@ -11,9 +11,10 @@ import z from 'zod';
 
 export default class User extends ModelWithProps<UserType> {
     protected $schema = z.object({
+        id: z.number(),
+        username: z.string().nullable(),
         firstName: z.string().nullable(),
         lastName: z.string().nullable(),
-        username: z.string().nullable(),
         permissions: z.record(z.string(), z.boolean()).default({
             'device.*.view': true
         }),

@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 export default class Language extends ModelWithProps<LanguageType> {
     protected $schema = z.object({
+        id: z.string(),
         messages: z.record(z.string(), z.any())
     })
     

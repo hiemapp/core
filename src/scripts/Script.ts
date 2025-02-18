@@ -12,6 +12,7 @@ import { z } from 'zod';
 
 export default class Script extends ModelWithProps<ScriptType> {
     protected $schema = z.object({
+        id: z.number(),
         name: z.string().nullable(),
         icon: z.string().nullable(),
         code: z.string().default(''),

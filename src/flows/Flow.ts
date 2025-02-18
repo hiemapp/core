@@ -12,6 +12,7 @@ import { z } from 'zod';
 
 export default class Flow extends ModelWithProps<FlowType> {
     protected $schema = z.object({
+        id: z.number(),
         name: z.string().nullable(),
         icon: z.string().nullable(),
         state: z.object({

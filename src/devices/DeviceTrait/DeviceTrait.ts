@@ -2,6 +2,13 @@ import _ from 'lodash';
 import { IDeviceTrait, DeviceTraitCommandRegistry, DeviceTrait_config, DeviceTraitDisplayProvider } from './DeviceTrait.types';
 import Device from '../Device';
 import DeviceDisplay from '../DeviceDisplay';
+import { z } from 'zod';
+
+export const DeviceTraitSchema = z.object({
+    name: z.string(),
+    config: z.record(z.string(), z.any()),
+    options: z.record(z.string(), z.any())
+})
 
 export default abstract class DeviceTrait<TTrait extends IDeviceTrait> {
     commandRegistry: DeviceTraitCommandRegistry<TTrait> = {} as any;
@@ -70,7 +77,7 @@ export default abstract class DeviceTrait<TTrait extends IDeviceTrait> {
         return this.constructor.name.slice(0, -5).toLowerCase();
     }
 
-    toJSON() {
+    toJSON(): z.infer<typeof DeviceTraitSchema> {
         return {
             name: this.constructor.name,
             config: this.config,

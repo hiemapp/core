@@ -11,6 +11,7 @@ export default function Controller<T extends Model<any>>() {
     
     abstract class Controller {
         static data: Record<TId, T> = {} as any;
+        static model: any;
 
         static index(): T[] {
             return Object.values(this.indexObject());
@@ -71,8 +72,9 @@ export default function Controller<T extends Model<any>>() {
             this.data[resource.id as TId] = resource;
         }
 
-        static load(...args: any[]): void;
-        static load(): void {
+        static async load(model: any): Promise<void> {
+            this.model = model;
+
             ControllerRegister.add(this);
         }
 

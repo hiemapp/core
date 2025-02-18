@@ -25,6 +25,7 @@ export interface ConnectorType {
 
 export default class Connector extends ModelWithProps<ConnectorType> {
     protected $schema = z.object({
+        id: z.number(),
         protocol: z.object({
             type: z.string().nullable(),
             options: z.object({})

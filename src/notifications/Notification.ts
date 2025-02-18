@@ -22,6 +22,7 @@ export default class Notification extends ModelWithProps<NotificationType> {
     public readonly uuid: string;
 
     protected $schema = z.object({
+        uuid: z.string(),
         message: z.union(
             [
                 z.object({

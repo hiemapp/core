@@ -1,9 +1,7 @@
 import * as _ from 'lodash';
-import { Constructor, GetPropsType } from '~types/helpers';
 import ModelWithProps, { InferSchema } from './ModelWithProps';
 import Database from './Database';
 import Controller from './Controller';
-import Model from './Model';
 import { z } from 'zod';
 import { getSchemaDefaults, getTypeFromSchema } from '~/utils/zod';
 
@@ -17,40 +15,40 @@ export default function DatabaseController<T extends ModelWithProps>() {
         static model: any;
 
         static update(resource: T): void {
-            const fields = _.omit(resource.getProps(), 'id');
+            const fields = this._propsToFields(resource.getProps());
             Database.knex(this.table).where({ id: resource.id }).upsert(fields);
         }
 
         static async create(props: InferSchema<T>) {
-            const [id] = await Database.knex(this.table).insert(props).returning('id');
-            const row = await Database.knex(this.table).where({ id }).select();
-            const resource = this._construct(id, row);
+            const insertFields = this._propsToFields(props);
+            const [id] = await Database.knex(this.table).insert(insertFields).returning('id');
+            
+            const fields = await Database.knex(this.table).where({ id }).select();
+            const resource = await this._construct(fields);
             this.add(resource);
             return resource;
         }
 
         static async load(model: any): Promise<void> {
-            super.load();
-
-            this.model = model;
+            await super.load(model);
 
             const rows: DatabaseRow[] = await Database.knex.select().from(this.table);
-            await Promise.all(rows.map(row => {
-                const resource = this._construct(row.id, row);
+            await Promise.all(rows.map(async fields => {
+                const resource = await this._construct(fields);
                 this.add(resource);
             }));
         }
 
-        static _construct(id: T['id'], row: Record<string, any>) {
-            const resource = new this.model(id);
-
-            if (!(resource.$schema instanceof z.ZodObject)) {
-                throw new Error(`No '$schema' property defined on model '${resource.constructor.name}'.`)
-            }
-            
-            const props = _.chain(row)
+        static _propsToFields(props: Record<string, any>) {
+            return _.chain(props)
                 .omit('id')
-                // Convert prop keys to camelCase
+                .mapKeys((v, k: string) => _.snakeCase(k)) 
+                .value();
+        }
+
+        static _fieldsToProps(fields: Record<string, any>, resource: any) {
+            return _.chain(fields)
+                .omit('id', 'changed_at', 'updated_at')
                 .mapKeys((v, k) => _.camelCase(k)) 
                 // Cast values to correct type
                 .mapValues((v, k) => {
@@ -67,9 +65,19 @@ export default function DatabaseController<T extends ModelWithProps>() {
                     return v;
                 })
                 .value();
+        }
 
-            resource.$props = props;
+        static async _construct(fields: Record<string, any>) {
+            const resource = new this.model(fields.id);
+
+            if (!(resource.$schema instanceof z.ZodObject)) {
+                throw new Error(`No '$schema' property defined on model '${resource.constructor.name}'.`)
+            }
+            
+            resource.$props = this._fieldsToProps(fields, resource);
             resource._defaultProps = getSchemaDefaults(resource.$schema);
+
+            await resource.__init();
 
             return resource;
         }

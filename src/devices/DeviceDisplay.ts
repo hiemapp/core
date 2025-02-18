@@ -2,37 +2,35 @@ import { Color, Icon } from '~/ui';
 import _ from 'lodash';
 import { User } from '~/users';
 import DeviceDisplayFormatters from '~/devices/DeviceDisplayFormatters';
+import { z } from 'zod';
 
-export type DeviceDisplayTextList = DeviceDisplayText[];
-export interface DeviceDisplayText {
-    text?: string|null;
-    html?: string|null;
-    message?: string;
-}
+export const DeviceDisplayTextSchema = z.object({
+    text: z.string().nullable().optional(),
+    html: z.string().nullable().optional(),
+    message: z.string().nullable().optional()
+})
 
-export interface DeviceDisplayRecord {
-    field: string;
-}
+export const DeviceDisplayRecordSchema = z.object({
+    field: z.string()
+})
 
-export interface DeviceDisplayRichContent {
-    thumbnail?: string;
-    title?: DeviceDisplayText;
-    description?: DeviceDisplayText;
-}
-
-export interface DeviceDisplaySerialized {
-    isActive: boolean;
-    content: DeviceDisplay['content'];
-    richContent: DeviceDisplayRichContent;
-}
+export const DeviceDisplaySchema = z.object({
+    isActive: z.boolean(),
+    content: z.object({
+        textList: z.array(DeviceDisplayTextSchema).optional(),
+        record: DeviceDisplayRecordSchema.optional()
+    }),
+    richContent: z.object({
+        thumbnail: z.string().optional(),
+        title: DeviceDisplayTextSchema.optional(),
+        description: DeviceDisplayTextSchema.optional()
+    })
+})
 
 export default class DeviceDisplay {
-    protected richContent: DeviceDisplayRichContent = {};
+    protected richContent: z.infer<typeof DeviceDisplaySchema>['richContent'] = {};
     protected _isActive: boolean;
-    protected content: {
-        textList?: DeviceDisplayTextList,
-        record?: DeviceDisplayRecord
-    } = {};
+    protected content: z.infer<typeof DeviceDisplaySchema>['content'] = {};
     public readonly formatters: DeviceDisplayFormatters;
 
     constructor(user?: User) {
@@ -63,23 +61,23 @@ export default class DeviceDisplay {
         return this;
     }
 
-    setText(text: DeviceDisplayText) {
+    setText(text: z.infer<typeof DeviceDisplayTextSchema>) {
         this.content.textList = [ text ];
         return this;
     }
 
-    addText(text: DeviceDisplayText) {
+    addText(text: z.infer<typeof DeviceDisplayTextSchema>) {
         this.content.textList ??= [];
         this.content.textList.push(text);
         return this;
     }
 
-    setRecord(record: DeviceDisplayRecord) {
+    setRecord(record: z.infer<typeof DeviceDisplayRecordSchema>) {
         this.content.record = record;
         return this;
     }
 
-    serialize(): DeviceDisplaySerialized {      
+    toJSON(): z.infer<typeof DeviceDisplaySchema> {      
         return {
             isActive: this.isActive(),
             content: this.content,

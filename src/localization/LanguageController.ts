@@ -6,8 +6,8 @@ import Language from './Language';
 import * as _ from 'lodash';
 
 export default class LanguageController extends Controller<Language>() {
-    static load() {
-        super.load();
+    static async load() {
+        await super.load(Language);
 
         LANGUAGE_IDS.forEach(id => {
             const language = new Language(id);

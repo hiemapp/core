@@ -4,23 +4,29 @@ import _ from 'lodash';
 import z from 'zod';
 import { ControllerType } from './Controller';
 import { defaultsDeepNull } from '~/utils';
+import { Device } from '~/devices';
+
+class MyClass<X> {
+  constructor(public value: X) {}
+}
 
 // @ts-ignore (protected property)
 export type InferSchema<T extends ModelWithProps> = z.infer<T['$schema']>;
+export type InferProps<T extends ModelWithProps> = Omit<InferSchema<T>, 'id'>;
 
 export type DynamicProps<T extends ModelWithProps> = Partial<{
     [K in keyof InferSchema<T>]: () => InferSchema<T>[K]
 }>;
 
 
-abstract class ModelWithProps<T extends ModelType = any> extends Model<T> {
+abstract class ModelWithProps<T extends Omit<ModelType, 'id'> = any> extends Model<T & { id: any }> {
     protected $schema: z.ZodSchema;
     protected $dynamicProps: DynamicProps<ModelWithProps> = {};
-    protected $props: InferSchema<this>;
+    protected $props: InferSchema<this> = {};
 
-    protected _defaultProps: InferSchema<this>;
+    protected _defaultProps: InferSchema<this> = {};
     
-    constructor(id: T['id']) {
+    constructor(id: any) {
         super(id);
     }
 
@@ -30,7 +36,7 @@ abstract class ModelWithProps<T extends ModelType = any> extends Model<T> {
      * Get all properties of the model.
      * @returns A copy of the properties of the model.
      */
-    getProps(): InferSchema<this> & { id: T['id'] } {
+    getProps(): InferSchema<this> {
         const propsWithDefaults = defaultsDeepNull({...this.$props}, this._defaultProps);
         return {...propsWithDefaults, id: this.$id };
     }

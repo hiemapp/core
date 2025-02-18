@@ -1,4 +1,4 @@
-import { ModelWithProps } from '~/lib';
+import { ControllerRegister, ModelWithProps } from '~/lib';
 import { ModelWithProps_SA } from './ModelWithProps.script-api';
 import { Constructor } from '~types/helpers';
 import { ControllerType } from '~/lib/Controller';
@@ -21,7 +21,7 @@ export class ApiControllerModule<TModel extends ModelWithProps_SA<any>> {
     constructor(model: Constructor<TModel>, innerModel: Constructor<ModelWithProps<any>>) {           
         this._model = model;
         this._innerModel = innerModel;
-        this._controller = this._innerModel.prototype.__modelConfig().controller;
+        this._controller = ControllerRegister.get(innerModel);
     }
 
     get(id: number) {
