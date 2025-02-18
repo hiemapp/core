@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import ModelWithProps, { InferSchema } from './ModelWithProps';
+import ModelWithProps, { InferProps } from './ModelWithProps';
 import Database from './Database';
 import Controller from './Controller';
 import { z } from 'zod';
@@ -19,7 +19,7 @@ export default function DatabaseController<T extends ModelWithProps>() {
             Database.knex(this.table).where({ id: resource.id }).upsert(fields);
         }
 
-        static async create(props: InferSchema<T>) {
+        static async create(props: InferProps<T>) {
             const insertFields = this._propsToFields(props);
             const [id] = await Database.knex(this.table).insert(insertFields).returning('id');
             
