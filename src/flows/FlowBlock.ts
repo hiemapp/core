@@ -50,7 +50,7 @@ export default class FlowBlock<TData extends {} = {}> extends ExtensionModule<TF
     }
 
     setLayout(layout: ExtensionModuleProvider<TFlowBlock, 'layout'>) {
-        // this._registerProvider('layout', layout);
+        this._registerProvider('layout', layout);
     }
 
     static serializeParameterLayout(param: IFlowBlockLayout_parameter) {
@@ -73,7 +73,7 @@ export default class FlowBlock<TData extends {} = {}> extends ExtensionModule<TF
     }
 
     protected _getLayout() {
-        return null;
+        return this.$module.methods.callProvider('layout', []);
     }
 
     protected _getFormat() {

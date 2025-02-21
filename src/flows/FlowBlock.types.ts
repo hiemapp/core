@@ -28,7 +28,6 @@ export interface IFlowBlockFormat_input {
 
 export interface IFlowBlockManifest {
     icon?: string;
-    fieldType: 'trigger' | 'condition' | 'action' | 'output';
     category: string;
     registersHandlers?: FlowblockContextHandlerName[];
     invokesHandlers?: FlowblockContextHandlerName[];

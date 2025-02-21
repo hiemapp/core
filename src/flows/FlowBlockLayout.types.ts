@@ -3,7 +3,7 @@ import type FlowBlock from './FlowBlock';
 import { FlowBlockContext } from '.';
 
 /* INPUT */
-export interface FlowBlockInputLayout {
+export interface IFlowBlockLayout_input {
     id: string;
     inheritLocale?: string;
 }
@@ -25,7 +25,7 @@ export type IFlowBlockLayout_parameter_provider = {
     dependencies: string[];
 }
 
-export interface IFlowBlockLayout_parameter extends FlowBlockInputLayout {
+export interface IFlowBlockLayout_parameter extends IFlowBlockLayout_input {
     type: IFlowBlockLayout_parameter_type | IFlowBlockLayout_parameter_type[];
     provider?: IFlowBlockLayout_parameter_provider;
     options?: IFlowBlockLayout_parameter_option[];
@@ -38,7 +38,7 @@ export interface IFlowBlockLayout_parameter extends FlowBlockInputLayout {
 }
 
 /* STATEMENT */
-export interface IFlowBlockLayout_statement extends FlowBlockInputLayout {
+export interface IFlowBlockLayout_statement extends IFlowBlockLayout_input {
     showLabel?: boolean;
 }
 

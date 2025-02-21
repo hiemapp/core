@@ -1,9 +1,9 @@
 import type { FlowBlockInputDef } from '~/flows/FlowBlockDef.types';
-import type { FlowBlockInputLayout } from '~/flows/FlowBlockLayout.types'
+import type { IFlowBlockLayout_input } from '~/flows/FlowBlockLayout.types'
 import EventEmitter from 'events';
 import FlowBlockContext from './FlowBlockContext';
 
-export default abstract class FlowBlockInputContext<TDef extends FlowBlockInputDef, TLayout extends FlowBlockInputLayout> {
+export default abstract class FlowBlockInputContext<TDef extends FlowBlockInputDef, TLayout extends IFlowBlockLayout_input> {
     readonly id: string;
     readonly events: EventEmitter;
     protected blockCtx: FlowBlockContext;
