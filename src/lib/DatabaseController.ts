@@ -56,7 +56,7 @@ export default function DatabaseController<T extends ModelWithProps>() {
 
                     if(type instanceof z.ZodObject || type instanceof z.ZodRecord) {
                         try {
-                            return JSON.parse(v);
+                            return JSON.parse(typeof v === 'string' ? v : '{}');
                         } catch(err) {
                             return {};
                         }
