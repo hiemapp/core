@@ -19,7 +19,7 @@ export default class FlowBlockLayout {
         return inputs.find(input => input.id.toUpperCase() === id.toUpperCase()) ?? null;
     }
 
-    serialize() {
+    toJSON(): IFlowBlockLayoutSerialized {
         const json = {...this.json};
 
         // Convert models to a { label, value } object
@@ -37,7 +37,7 @@ export default class FlowBlockLayout {
             return param;
         })
 
-        return json;
+        return json as IFlowBlockLayoutSerialized;
     }
 
     extend(json: IFlowBlockLayout): Required<IFlowBlockLayout> {

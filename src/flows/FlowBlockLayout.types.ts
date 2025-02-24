@@ -30,8 +30,8 @@ export interface IFlowBlockLayout_parameter extends IFlowBlockLayout_input {
     provider?: IFlowBlockLayout_parameter_provider;
     options?: IFlowBlockLayout_parameter_option[];
     shadow?: {
-        type?: IFlowBlockLayout_parameter_shadow_type | IFlowBlockLayout_parameter_shadow_type[];
-        value?: any;
+        type?: string;
+        values?: Record<string, any>;
     };
     blockly?: any;
     variable?: boolean;
@@ -57,9 +57,9 @@ export interface IFlowBlockLayout {
 }
 
 export interface IFlowBlockLayoutSerialized extends IFlowBlockLayout {
-    connections: Required<IFlowBlockLayout['connections']>;
+    connections: Exclude<Required<IFlowBlockLayout['connections']>, undefined>;
     parameters: IFlowBlockLayoutSerialized_parameter[];
-    statements: Required<IFlowBlockLayout['statements']>;
+    statements: Exclude<Required<IFlowBlockLayout['statements']>, undefined>;
     output: Required<IFlowBlockLayout['output']>
 }
 

@@ -73,7 +73,8 @@ export default class FlowBlock<TData extends {} = {}> extends ExtensionModule<TF
     }
 
     protected _getLayout() {
-        return this.$module.methods.callProvider('layout', []);
+        const json = this.$module.methods.callProvider('layout', []);
+        return new FlowBlockLayout(json);
     }
 
     protected _getFormat() {

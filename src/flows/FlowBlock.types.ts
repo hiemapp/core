@@ -1,5 +1,5 @@
 import { FlowblockContextHandlerName } from './FlowBlockContext/FlowBlockContext';
-import { IFlowBlockLayout } from './FlowBlockLayout.types';
+import { IFlowBlockLayout, IFlowBlockLayout_parameter_type } from './FlowBlockLayout.types';
 import { FlowTaskData } from './Flow.types';
 import { TExtensionModule } from '~/extensions/ExtensionModule';
 
@@ -29,6 +29,7 @@ export interface IFlowBlockFormat_input {
 export interface IFlowBlockManifest {
     icon?: string;
     category: string;
+    primitive?: IFlowBlockLayout_parameter_type;
     registersHandlers?: FlowblockContextHandlerName[];
     invokesHandlers?: FlowblockContextHandlerName[];
     localeScope?: string;

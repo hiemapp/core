@@ -9,7 +9,7 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext<Flo
 
     async execute(pointerIndex: number = 0) {
         this.events.emit('execute');
-        this.movePointer(pointerIndex);
+        this.setPointer(pointerIndex);
 
         while(!this.isExecutionStopped) {
             await this.executeBlock(this.pointerIndex);
@@ -38,6 +38,11 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext<Flo
         return true;
     }
 
+    getBlock(index: number): FlowBlockContext|null {
+        const block = this.blocks()[index];
+        return block ?? null;
+    }
+
     blocks(): FlowBlockContext[] {
         return this.def.children.map(id => this.blockCtx.flowCtx.getBlock(id))
     }
@@ -57,7 +62,11 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext<Flo
         return this.execute(pointerIndex);
     }
 
-    movePointer(index: number) {
+    movePointer(moveIndex: number = 1) {
+        this.pointerIndex += moveIndex;
+    }
+
+    setPointer(index: number) {
         this.pointerIndex = index;
     }
 
@@ -67,6 +76,10 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext<Flo
 
     currentPointer() {
         return this.pointerIndex;
+    }
+
+    currentBlock() {
+        return this.getBlock(this.pointerIndex);
     }
 
     protected findDef() {
