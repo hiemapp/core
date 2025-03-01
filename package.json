@@ -17,6 +17,7 @@
     "downsample": "^1.4.0",
     "express": "^4.19.2",
     "glob": "^10.2.6",
+    "jsonfile": "^6.1.0",
     "knex": "^3.1.0",
     "kolorist": "^1.8.0",
     "lodash": "^4.17.21",
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/glob": "^8.1.0",
+    "@types/jsonfile": "^6.1.4",
     "@types/lodash": "^4.17.0",
     "@types/minimatch": "^5.1.2",
     "@types/node": "^20.11.30",
