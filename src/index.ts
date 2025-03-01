@@ -8,6 +8,7 @@ export * from './users/index';
 export * from './dashboard/index';
 export * from './notifications/index';
 export * from './scripts/index';
+export * from './tasks/index';
 export * as utils from './utils/index';
 export * as errors from './errors/index';
 export * from './lib/index';

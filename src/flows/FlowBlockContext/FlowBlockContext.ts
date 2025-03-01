@@ -6,7 +6,6 @@ import FlowBlock from '../FlowBlock';
 import ExtensionController from '~/extensions/ExtensionController';
 import FlowContext from '../FlowContext/FlowContext';
 import { PromiseAllObject } from '~/utils/Promise';
-import { ensureFind } from '~/utils/object';
 import Manifest from '~/utils/Manifest';
 import { FlowTaskData } from '../Flow.types';
 import FlowBlockLayout from '../FlowBlockLayout';
@@ -158,8 +157,10 @@ export default class FlowBlockContext {
         return await PromiseAllObject(promises);
     }
 
-    currentStatement(): FlowBlockStatementContext {
-        return ensureFind(this.parentBlock()!.statements(), s => s.blocks().includes(this));
+    parentStatement(): FlowBlockStatementContext {
+        const statement = this.parentBlock()!.statements().find(stmt => stmt.blocks().includes(this));
+        if(!statement) throw new Error('Block is not inside statement.');
+        return statement;
     }
 
     addListener<TModel extends Model<any>>(model: TModel, eventName: string, callback: (data: any) => unknown) {
@@ -176,7 +177,7 @@ export default class FlowBlockContext {
     }
 
     siblings() {
-        const stmt = this.currentStatement();
+        const stmt = this.parentStatement();
         return stmt ? stmt.blocks() : [];
     }
 

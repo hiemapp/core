@@ -7,10 +7,13 @@ import FlowBlock from './FlowBlock';
 import { logger } from '../lib';
 import { FlowBlockContext, FlowBlockLayout, FlowContext } from '~/flows';
 import Manifest from '~/utils/Manifest';
+import _ from 'lodash';
 
 export interface BlocklySerializedWorkspace {
-    languageVersion: number;
-    blocks: BlocklyBlock[];
+    blocks?: {
+        languageVersion: number;
+        blocks: BlocklyBlock[];
+    }
 }
 
 export interface BlocklyBlock {
@@ -24,13 +27,7 @@ export interface BlocklyBlock {
 }
 
 export interface BlocklyBlockInput {
-    shadow?: {
-        type: string;
-        id: string;
-        fields?: {
-            [id: string]: any;
-        };
-    };
+    shadow?: BlocklyBlock;
     block?: BlocklyBlock;
 }
 
@@ -55,8 +52,8 @@ export default class BlocklyTranspiler {
     transpileWorkspace(state: BlocklySerializedWorkspace): FlowDef {
         this.def = { blocks: [] };
 
-        if(Array.isArray(state.blocks)) {
-            state.blocks.forEach(block => {
+        if(Array.isArray(state.blocks?.blocks)) {
+            state.blocks.blocks.forEach(block => {
                 this.transpileBlockNextTree(block);
             })
         }
@@ -108,10 +105,11 @@ export default class BlocklyTranspiler {
 
     protected transpileBlockInputs(block: BlocklyBlock, blockDef: FlowBlockDef, layout: FlowBlockLayout) {       
         forOwn(block.inputs, (input, id) => {
-            if(input.block) {
+            const inputBlock = input?.block ?? input?.shadow;
+            if(inputBlock) {
                 const statement = layout.getStatementOrFail(id);
                 if(statement) {
-                    const childrenIds = this.transpileBlockNextTree(input.block, block);
+                    const childrenIds = this.transpileBlockNextTree(inputBlock, block);
                     blockDef.statements.push({
                         id: id,
                         children: childrenIds

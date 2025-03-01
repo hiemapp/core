@@ -1,18 +1,20 @@
-import Taskrunner, { type Task } from './Taskrunner';
+import { TaskController } from '~/tasks';
+import Taskrunner from './Taskrunner';
+import Task from '~/tasks/Task';
 
 export interface TaskManagerListener<TData = any> {
     keyword: string,
-    callback: (task: Task<TData>) => unknown
+    callback: (task: Task) => unknown
 }
 
 export default class TaskManager {
     public readonly id;
-    public readonly handlers: TaskManagerListener[] = []; 
+    public readonly handlers: TaskManagerListener[] = [];
 
     constructor(id: string) {
         this.id = id;
 
-        if(Taskrunner.managers[id]) {
+        if (Taskrunner.managers[id]) {
             throw new Error(`TaskManager '${id}' already exists.`);
         }
 
@@ -23,12 +25,12 @@ export default class TaskManager {
         this.handlers.push({ keyword, callback });
     }
 
-    async addDelayedTask<TData = any>( keyword: string, msDelay: number, data?: TData) {
+    async addDelayedTask<TData = any>(keyword: string, msDelay: number, data?: TData) {
         const date = new Date(Date.now() + msDelay);
         return await Taskrunner.addTask<TData>(this, keyword, date, null, data);
     }
 
-    async addTimedTask<TData = any>( keyword: string, date: Date, data?: TData) {
+    async addTimedTask<TData = any>(keyword: string, date: Date, data?: TData) {
         return await Taskrunner.addTask<TData>(this, keyword, date, null, data);
     }
 
@@ -43,15 +45,15 @@ export default class TaskManager {
         return await Taskrunner.addTask<TData>(this, keyword, null, interval, data);
     }
 
-    async deleteTask(uuid: string) {
-        return Taskrunner.deleteTask(uuid);
+    deleteTask(id: number) {
+        return TaskController.delete(id);
+    }
+
+    getTasks() {
+        return TaskController.indexBy(t => t.getMeta().managerId === this.id);
     }
 
     async deleteAllTasks() {
-        await Promise.all(Taskrunner.listTasks().map(task => {
-            if(task.meta.managerId === this.id) {
-                return Taskrunner.deleteTask(task.uuid);
-            }
-        }));
+        return await Promise.all(this.getTasks().map(t => this.deleteTask(t.id)));
     }
 }

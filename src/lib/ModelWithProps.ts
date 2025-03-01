@@ -5,6 +5,7 @@ import z from 'zod';
 import { ControllerType } from './Controller';
 import { defaultsDeepNull } from '~/utils';
 import { Device } from '~/devices';
+import ControllerRegister from './ControllerRegister';
 
 class MyClass<X> {
   constructor(public value: X) {}
@@ -91,7 +92,7 @@ abstract class ModelWithProps<T extends Omit<ModelType, 'id'> = any> extends Mod
         _.set(this.$props, keypath, value);
 
         // Update the controller
-        const controller: ControllerType = (this.constructor as any).$controller;
+        const controller = ControllerRegister.get(this.constructor as any);
         if (typeof controller?.update === 'function') {
             controller.update(this);
         }

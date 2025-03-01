@@ -1,20 +1,10 @@
 import Database from './Database';
 import Logger from './Logger';
-import { uuid } from '../utils/string';
 import _ from 'lodash';
 import cronParser from 'cron-parser';
 import TaskManager from './TaskManager';
-
-export interface Task<TData = any> {
-    date: Date | null,
-    interval: string | null,
-    keyword: string,
-    data: TData,
-    uuid: string,
-    meta: {
-        managerId: string;
-    }
-}
+import TaskController from '~/tasks/TaskController';
+import Task from '~/tasks/Task';
 
 export interface TaskState {
     isPreparing: boolean
@@ -25,7 +15,6 @@ class Taskrunner {
     public static managers: Record<string, TaskManager> = {};
 
     protected static intervalId: NodeJS.Timeout;
-    protected static tasks: Record<string, Task> = {};
     protected static taskState: Record<string, TaskState | undefined> = {};
     protected static logger = new Logger({ label: 'Taskrunner' });
 
@@ -47,9 +36,7 @@ class Taskrunner {
      */
     protected static TASK_PREPARE_MS_BEFORE: number = 20 * 1000;
 
-    static async addTask<TData = any>(manager: TaskManager, keyword: string, date: Date | null = null, interval: string | null = null, data?: TData): Promise<string> {
-        const taskUuid = uuid();
-
+    static async addTask<TData = any>(manager: TaskManager, keyword: string, date: Date | null = null, interval: string | null = null, data?: TData): Promise<Task|false> {
         try {
             // Check if the interval is valid
             if (interval) {
@@ -60,27 +47,30 @@ class Taskrunner {
                 }
             }
 
-            const task: Task = {
+            // Ignore if dat is in the past
+            if(date && Taskrunner.getTimeUntil(date) <= 0) return false;
+
+            const task = await TaskController.create({
                 date,
                 interval,
                 keyword,
                 data,
-                uuid: taskUuid,
                 meta: {
                     managerId: manager.id
                 }
-            };
+            })
 
-            // Register the task
-            this.registerTask(task);
+            // Set default task state
+            this.taskState[task.id] = { isPreparing: false };
 
-            // The task might have a short time difference,
-            // so we should perform a check after creation.
+            this.logger.debug(`Created new '${task.getKeyword()}' task`, { id: task.id, date: task.getDate(), interval: task.getInterval() });
+            
+            // The task might have a short time difference, check tasks immediately after creation.
             this.checkTasks();
 
-            return taskUuid;
+            return task;
         } catch (err: any) {
-            throw new Error(`Error adding task '${taskUuid}': ${err.message}.`);
+            throw new Error(`Error adding task: ${err.message}.`);
         }
     }
 
@@ -97,175 +87,119 @@ class Taskrunner {
         this.logger.debug(`Timer started, checking tasks every ${this.CHECK_TASKS_INTERVAL}ms.`);
 
         // Check tasks immediately
-        await this.fetchTasks();
         this.checkTasks();
-    }
-
-    static listTasks() {
-        return Object.values(this.tasks);
     }
 
     protected static getTimeUntil(date: Date) {
         return date.getTime() - Date.now();
     }
 
-    protected static getTaskState(taskUuid: string): TaskState | undefined {
-        return this.taskState[taskUuid];
+    protected static getTaskState(id: string): TaskState | undefined {
+        return this.taskState[id];
     }
 
-    protected static updateTaskState(taskUuid: string, taskState: TaskState) {
-        this.taskState[taskUuid] = Object.assign(this.taskState[taskUuid] ?? {}, taskState);
-    }
-
-    static async deleteTask(uuid: string): Promise<void> {
-        // Delete task from local memory
-        delete this.tasks[uuid];
-        delete this.taskState[uuid];
-
-        // Delete task from database
-        await Database.knex('tasks').where({ uuid }).delete()
-
-        // this.logger.debug(`Deleted task '${uuid}'.`);
-    }
-
-    protected static async registerTask(task: Task): Promise<boolean> {
-        try {
-            // Don't register task if its date is in the past
-            if (task.date && Taskrunner.getTimeUntil(task.date) < 0) {
-                return false;
-            }
-
-            // Add task to local memory
-            this.tasks[task.uuid] = task;
-            this.taskState[task.uuid] = { isPreparing: false };
-
-            // Add task to database
-            this.storeTaskInDatabase(task);
-
-            this.logger.debug(`Registered new '${task.keyword}' task`, { uuid: task.uuid, date: task.date, interval: task.interval });
-            return true;
-        } catch (err) {
-            this.logger.error(`Error registering task '${task.uuid}':`, err);
-            return false;
-        }
-    }
-
-    protected static async storeTaskInDatabase(task: Task) {
-        // Don't add timed tasks with a short lifespan to the database
-        if(task.date && this.getTimeUntil(task.date) < this.TASK_MIN_LIFESPAN_FOR_DATABASE) return false;
-        
-        await Database.knex('tasks').insert(task)
-        return true;
+    protected static updateTaskState(id: string, taskState: TaskState) {
+        this.taskState[id] = Object.assign(this.taskState[id] ?? {}, taskState);
     }
 
     protected static async checkTasks() {
         const now = Date.now();
 
-        _.forOwn(this.tasks, task => {
-            const state = this.getTaskState(task.uuid);
+        TaskController.index().forEach(task => {
+            const state = this.getTaskState(task.id);
             if (state?.isPreparing) return true;
-
-            if (task.date) {
+            
+            const date = task.getDate();
+            const interval = task.getInterval();
+            if (date) {
                 // If the task's date has already passed, delete the the task and ignore it
-                if (Taskrunner.getTimeUntil(task.date) < 0) {
-                    this.deleteTask(task.uuid);
+                if (Taskrunner.getTimeUntil(date) < 0) {
+                    TaskController.delete(task.id);
                     return true;
                 }
 
                 // Run the task if it's time is close to the current time
-                if (Taskrunner.getTimeUntil(task.date) < this.TASK_PREPARE_MS_BEFORE) {
-                    this.prepareTaskForExecution(task.uuid);
+                if (Taskrunner.getTimeUntil(date) < this.TASK_PREPARE_MS_BEFORE) {
+                    this.prepareTaskForExecution(task.id);
                 }
-            } else if (task.interval) {
+            } else if (interval) {
                 try {
-                    const nextDate = cronParser.parseExpression(task.interval).next();
+                    const nextDate = cronParser.parseExpression(interval).next();
 
                     if (nextDate.getTime() - now <= this.TASK_PREPARE_MS_BEFORE) {
-                        this.prepareTaskForExecution(task.uuid);
+                        this.prepareTaskForExecution(task.id);
                     }
                 } catch (err: any) {
-                    this.logger.error(`Error checking task '${task.uuid}':`, err);
+                    this.logger.error(`Error checking task '${task.id}':`, err);
                 }
             }
         })
     }
 
-    protected static prepareTaskForExecution(taskUuid: string) {
-        const task = this.getTask(taskUuid);
-        const state = this.getTaskState(taskUuid);
+    protected static prepareTaskForExecution(task: Task) {
+        const state = this.getTaskState(task.id);
 
         // Return if the task can not be found
         // or if it's already being prepared.
-        if (!task || state?.isPreparing) return;
+        if (!state?.isPreparing) return;
 
-        // this.logger.debug(`Preparing task '${task.uuid}.'`);
+        this.logger.debug(`Preparing task '${task.id}.'`);
 
-        this.updateTaskState(task.uuid, {
+        this.updateTaskState(task.id, {
             isPreparing: true
         });
 
         let msDelay: number|null = null;
-        if (task.date) {
-            msDelay = task.date.getTime() - Date.now();
-        } else if (task.interval) {
+        const date = task.getDate();
+        const interval = task.getInterval();
+        if (date) {
+            msDelay = date.getTime() - Date.now();
+        } else if (interval) {
             try {
-                const nextDate = cronParser.parseExpression(task.interval).next();
+                const nextDate = cronParser.parseExpression(interval).next();
                 msDelay = nextDate.getTime() - Date.now();
             } catch (err: any) {
-                this.logger.error(`Error preparing task '${task.uuid}':`, err);
+                this.logger.error(`Error preparing task '${task.id}':`, err);
             }
         }
 
         if(typeof msDelay === 'number') {
             setTimeout(async () => {
                 // Check if the task still exists before executing
-                if (!this.getTask(task.uuid)) return;
+                if (!TaskController.exists(task.id)) return;
 
                 this.executeTask(task);
 
                 // Delete non-repeating task after execution
-                if(!task.interval) {
-                    this.deleteTask(task.uuid);
+                if(!task.getInterval()) {
+                    TaskController.delete(task.id);
                 }
             }, msDelay);
         }
     }
 
     protected static executeTask(task: Task) {
-        this.logger.debug(`Executing task '${task.uuid}'.`);
+        this.logger.debug(`Executing task '${task.id}'.`);
 
         try {
-            const manager = this.managers[task.meta.managerId];
+            const manager = this.managers[task.getMeta().managerId];
 
             if (!manager) {
-                throw new Error(`TaskManager '${task.meta.managerId}' not found.`);
+                throw new Error(`TaskManager '${task.getMeta().managerId}' not found.`);
             }
 
             manager.handlers.forEach(handler => {
-                if (handler.keyword === task.keyword) {
+                if (handler.keyword === task.getKeyword()) {
                     handler.callback(task);
                 }
             })
 
-            this.updateTaskState(task.uuid, {
+            this.updateTaskState(task.id, {
                 isPreparing: false
             });
         } catch (err: any) {
-            this.logger.error(`Error executing task '${task.uuid}':`, err);
+            this.logger.error(`Error executing task '${task.id}':`, err);
         }
-    }
-
-    protected static getTask(taskUuid: string) {
-        return this.tasks[taskUuid];
-    }
-
-    static async fetchTasks(): Promise<void> {
-        this.logger.debug('Fetching tasks from database.');
-
-        const rows = await Database.knex('tasks').select()
-        rows.forEach(row => {
-            this.tasks[row.uuid] = row;
-        })
     }
 }
 

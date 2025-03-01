@@ -4,6 +4,7 @@ import Database from './Database';
 import Controller from './Controller';
 import { z } from 'zod';
 import { getSchemaDefaults, getTypeFromSchema } from '~/utils/zod';
+import { logger } from './Logger';
 
 type DatabaseRow = {
     id: number
@@ -14,16 +15,24 @@ export default function DatabaseController<T extends ModelWithProps>() {
         static table: string;
         static model: any;
 
-        static update(resource: T): void {
+        static async delete(id: any) {
+            await Database.knex(this.table).where({ id }).delete().catch(err => {
+                logger.error(err);
+            });
+        }
+
+        static async update(resource: T): Promise<void> {
             const fields = this._propsToFields(resource.getProps());
-            Database.knex(this.table).where({ id: resource.id }).upsert(fields);
+            await Database.knex(this.table).where({ id: resource.id }).update(fields).catch(err => {
+                resource.logger.error(err);
+            });
         }
 
         static async create(props: InferProps<T>) {
             const insertFields = this._propsToFields(props);
-            const [id] = await Database.knex(this.table).insert(insertFields).returning('id');
+            const [id] = await Database.knex(this.table).insert(insertFields);
             
-            const fields = await Database.knex(this.table).where({ id }).select();
+            const [fields] = await Database.knex(this.table).where({ id }).select();
             const resource = await this._construct(fields);
             this.add(resource);
             return resource;
@@ -43,6 +52,9 @@ export default function DatabaseController<T extends ModelWithProps>() {
             return _.chain(props)
                 .omit('id')
                 .mapKeys((v, k: string) => _.snakeCase(k)) 
+
+                // serialize json objects
+                .mapValues(v => _.isPlainObject(v) ? JSON.stringify(v) : v)
                 .value();
         }
 
@@ -50,7 +62,8 @@ export default function DatabaseController<T extends ModelWithProps>() {
             return _.chain(fields)
                 .omit('id', 'changed_at', 'updated_at')
                 .mapKeys((v, k) => _.camelCase(k)) 
-                // Cast values to correct type
+
+                // deserialize json objects
                 .mapValues((v, k) => {
                     const type = getTypeFromSchema(resource.$schema, k);
 

@@ -4,40 +4,25 @@ import { FlowType } from './Flow.types';
 import FlowBlockContext from './FlowBlockContext/FlowBlockContext';
 import BlocklyTranspiler, { type BlocklySerializedWorkspace } from './BlocklyTranspiler';
 import FlowContext from './FlowContext/FlowContext';
-import Taskrunner, { Task } from '../lib/Taskrunner';
 import ExtensionController from '../extensions/ExtensionController';
 import FlowBlock from './FlowBlock';
-import Taskmanager from '~/lib/TaskManager';
+import TaskManager from '~/lib/TaskManager';
 import { z } from 'zod';
+import Task from '~/tasks/Task';
 
 export default class Flow extends ModelWithProps<FlowType> {
     protected $schema = z.object({
         id: z.number(),
         name: z.string().nullable(),
         icon: z.string().nullable(),
-        state: z.object({
-            languageVersion: z.number(),
-            blocks: z.array(z.any())
-        }).default({
-            languageVersion: 0,
-            blocks: []
-        }),
-        workspace: z.object({}).default({
-            json: {
-                fields: {
-                    trigger: { blocks: [] },
-                    condition: { blocks: [] },
-                    action: { blocks: []}
-                }
-            }
-        })
+        state: z.object({}).default({})
     })
 
-    taskManager: Taskmanager;
+    taskManager: TaskManager;
     protected context: { blocks: Record<string, FlowBlockContext>, flow: FlowContext };
     
     async __init() {
-        this.taskManager = new Taskmanager(`flows.flow${this.id}`);
+        this.taskManager = new TaskManager(`flows.${this.id}`);
         this.taskManager.addHandler('FLOW_TASK', this.handleBlockCustomTask.bind(this));
             
         await this.load().catch(err => {
@@ -46,22 +31,19 @@ export default class Flow extends ModelWithProps<FlowType> {
     }
 
     async update(newState: BlocklySerializedWorkspace) {
-        this.logger.debug('Reloading...');
-
         // Unload all the blocks
+        this.logger.debug('Unloading blocks...');
         await Promise.all(this.getBlocks().map(block => block.unload()))
         
         // Delete all existing tasks
-        await Promise.all(Taskrunner.listTasks().map(t => {
-            if (t.keyword === 'FLOW_TASK' && t.data.ctx.flowId === this.id) {
-                return Taskrunner.deleteTask(t.uuid);
-            }
-        }));
+        this.logger.debug('Deleting tasks...');
+        await this.taskManager.deleteAllTasks();
 
         this.setProp('state', newState);
         await this.load();
 
         // Mount all the blocks
+        this.logger.debug('Mounting blocks...');
         await Promise.all(this.getBlocks().map(block => block.mount()))
     }
 
@@ -86,17 +68,17 @@ export default class Flow extends ModelWithProps<FlowType> {
     }
 
     protected handleBlockCustomTask(task: Task) {
-        if (task.data.taskType !== 'CUSTOM') return;
-        if (task.data.ctx.flowId !== this.id) return;
+        const data = task.getData();
+        if (data.taskType !== 'CUSTOM') return;
+        if (data.ctx.flowId !== this.id) return;
 
         try {
-            const data = task.data;
             const block = ExtensionController.findModule(FlowBlock, data.ctx.block.type);
             const blockCtx = this.context.blocks[data.ctx.block.id];
 
             const originalTask = {
-                keyword: task.data.originalKeyword,
-                data: task.data.originalData
+                keyword: data.originalKeyword,
+                data: data.originalData
             };
 
             block.emit('task', blockCtx, originalTask);

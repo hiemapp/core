@@ -1,13 +1,13 @@
 import * as _ from 'lodash';
-import Model, { InferModelType } from '../lib/Model';
-import ModelWithProps from './ModelWithProps';
+import Model from '../lib/Model';
+import ModelWithProps, { InferSchema } from './ModelWithProps';
 import ControllerRegister from './ControllerRegister';
 
 export type FilterPredicate<TModel> = (model: TModel) => boolean | string | number | void | null;
 export type ControllerType<T extends Model<any> = Model<any>> = ReturnType<typeof Controller<T>>;
 
 export default function Controller<T extends Model<any>>() {
-    type TId = InferModelType<T>['id'];
+    type TId = string|number;
     
     abstract class Controller {
         static data: Record<TId, T> = {} as any;
