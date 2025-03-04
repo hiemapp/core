@@ -152,12 +152,11 @@ export default class Device extends ModelWithProps<DeviceType> {
 
     isConnected() {
         if (!this._driver) return false;
-        if (!this._connector || !this._connector.isConnected()) return false;
+
+        if (this._connector && !this._connector.isConnected()) return false;
 
         if (this._driver.$module.methods.hasProvider('checkConnection')) {
-            if (this._driver.$module.methods.callProvider('checkConnection', [this]) !== true) {
-                return false;
-            }
+            return !!this._driver.$module.methods.callProvider('checkConnection', [this])
         }
 
         return true;
