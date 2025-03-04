@@ -3,10 +3,35 @@ import { IFlowBlockLayout, IFlowBlockLayoutSerialized } from './FlowBlockLayout.
 import Model from '~/lib/Model';
 
 export default class FlowBlockLayout {
+    public static JSON_VALUE_PREFIX = '#json:'
+
     json: Required<IFlowBlockLayout>;
 
     constructor(json: any) {
         this.json = this.extend(json);
+    }
+
+    /**
+     * Serialize a value, e.g. for dropdown values as they can only be strings.
+     * @param value The value to serialize.
+     * @returns The serialized value.
+     */
+    static serializeValue(value: any) {
+        return this.JSON_VALUE_PREFIX+JSON.stringify(value);
+    }
+
+    /**
+     * Check if a value is serialized using the .serializeValue() 
+     * method, and deserialize it.
+     * @param value The value to deserialize.
+     * @returns The deserialized or original value.
+     */
+    static deserializeValue(value: any) {
+        if(typeof value === 'string' && value.startsWith(this.JSON_VALUE_PREFIX)) {
+            value = JSON.parse(value.slice(this.JSON_VALUE_PREFIX.length));
+        }
+
+        return value;
     }
 
     getParameters() { return this.json.parameters; }
@@ -20,24 +45,24 @@ export default class FlowBlockLayout {
     }
 
     toJSON(): IFlowBlockLayoutSerialized {
-        const json = {...this.json};
+        return {
+            ...this.json,
+            parameters: this.json.parameters.map(param => {
+                if(!Array.isArray(param.options)) return param;
 
-        // Convert models to a { label, value } object
-        json.parameters = json.parameters.map(param => {
-            if(Array.isArray(param.options)) {
-                param.options = param.options.map(opt => {
-                    if(opt instanceof Model) {
-                        return { value: opt.id, label: opt.getProp('name') };
-                    }
+                return { 
+                    ...param, 
+                    options: param.options.map(opt => {
+                        if(opt instanceof Model) {
+                            opt = { value: opt.id, label: opt.getProp('name')};
+                        }
 
-                    return opt;
-                })
-            }
-
-            return param;
-        })
-
-        return json as IFlowBlockLayoutSerialized;
+                        // Dropdown values are JSON encoded and prefixed, as Blockly only allows for string values
+                        return { ...opt, value: FlowBlockLayout.serializeValue(opt.value) };
+                    })
+                };
+            })
+        } as IFlowBlockLayoutSerialized;
     }
 
     extend(json: IFlowBlockLayout): Required<IFlowBlockLayout> {

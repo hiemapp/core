@@ -14,12 +14,12 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext<Flo
         while(!this.isExecutionStopped) {
             await this.executeBlock(this.pointerIndex);
 
-            if(this.pointerIndex < this.blocks().length) {
-                this.pointerIndex++;
-            } else {
+            if(this.pointerIndex >= this.blocks().length) {
                 this.events.emit('end');
                 break;
             }
+
+            this.pointerIndex++;
         }
     }
 
@@ -51,8 +51,8 @@ export default class FlowBlockStatementContext extends FlowBlockInputContext<Flo
         return this.isExecutionStopped;
     }
 
-    stopExecution(isExecutionStopped: boolean = true) {
-        this.isExecutionStopped = isExecutionStopped;
+    stopExecution() {
+        this.isExecutionStopped = true;
         this.events.emit('stop');
     }
 

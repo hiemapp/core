@@ -41,18 +41,14 @@ export default class Device extends ModelWithProps<DeviceType> {
             pingInterval: z.number().default(0)
         }),
         metadata: z.object({}),
-        connection: z.object({
-            isOpen: z.boolean()
-        }),
+        isConnected: z.boolean(),
         state: DeviceStateSchema,
         display: DeviceDisplaySchema,
         traits: z.array(DeviceTraitSchema)
     })
 
     protected $dynamicProps: DynamicProps<Device> = {
-        connection: () => ({ 
-            isOpen: this.isConnected() 
-        }),
+        isConnected: () => this.isConnected(),
         state: () => this.getState(),
         display: () => this.getDisplay().toJSON(),
         traits: () => this.getTraits().map(trait => trait.toJSON())
@@ -66,8 +62,6 @@ export default class Device extends ModelWithProps<DeviceType> {
 
     get records() { return this._records; }
     protected _records: RecordManager;
-
-    protected hasConnector: boolean = false;
 
     async __init() {
         try {
@@ -158,10 +152,7 @@ export default class Device extends ModelWithProps<DeviceType> {
 
     isConnected() {
         if (!this._driver) return false;
-
-        if (this.hasConnector) {
-            if (!this._connector || !this._connector.isReady()) return false;
-        }
+        if (!this._connector || !this._connector.isConnected()) return false;
 
         if (this._driver.$module.methods.hasProvider('checkConnection')) {
             if (this._driver.$module.methods.callProvider('checkConnection', [this]) !== true) {
@@ -359,6 +350,11 @@ export default class Device extends ModelWithProps<DeviceType> {
 
         this._connector = ConnectorController.find(connectorId);
 
+        // Add 'connect' and 'disconnect' event listeners
+        this.connector.on('disconnect', () => this.emit('connection:update', {}))
+        this.connector.on('connect', () => this.emit('connection:update', {}))
+
+        // Connectors can only be initialized once
         if (!this.connector.isInitialized()) {
             // Get the connectors's default protocol config
             let protocolConfig = this.connector.getProp('protocol');

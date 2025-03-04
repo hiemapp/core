@@ -16,9 +16,9 @@ export default function DatabaseController<T extends ModelWithProps>() {
         static model: any;
 
         static async delete(id: any) {
-            await Database.knex(this.table).where({ id }).delete().catch(err => {
-                logger.error(err);
-            });
+            delete this.data[id];
+            await Database.knex(this.table).where({ id }).delete()
+                .catch(err => logger.error(err));
         }
 
         static async update(resource: T): Promise<void> {

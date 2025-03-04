@@ -1,2 +1,2 @@
-export { Device, DeviceDriver, DeviceController, DeviceDisplay, DeviceDriverManifest, DeviceConnection } from '~/devices';
+export { Device, DeviceDriver, DeviceController, DeviceDisplay, DeviceDriverManifest } from '~/devices';
 export { DeviceTraits as traits } from '~/devices';

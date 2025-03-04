@@ -27,6 +27,7 @@ export default class TaskManager {
 
     async addDelayedTask<TData = any>(keyword: string, msDelay: number, data?: TData) {
         const date = new Date(Date.now() + msDelay);
+        console.log({ msDelay, date })
         return await Taskrunner.addTask<TData>(this, keyword, date, null, data);
     }
 
@@ -39,20 +40,31 @@ export default class TaskManager {
      * @param interval The cronjob pattern.
      * @param keyword The task keyword.
      * @param data The task data.
-     * @returns The task uuid.
+     * @returns The task id.
      */
     async addRepeatingTask<TData = any>(keyword: string, interval: string, data?: TData) {
         return await Taskrunner.addTask<TData>(this, keyword, null, interval, data);
     }
 
-    deleteTask(id: number) {
+    /**
+     * Delete a specific task.
+     * @param id The id of the task to delete.
+     */
+    deleteTask(id: number): Promise<void> {
         return TaskController.delete(id);
     }
 
+    /**
+     * Get all tasks of this manager.
+     * @returns The tasks of this manager.
+     */
     getTasks() {
         return TaskController.indexBy(t => t.getMeta().managerId === this.id);
     }
 
+    /**
+     * Delete all tasks of this manager.
+     */
     async deleteAllTasks() {
         return await Promise.all(this.getTasks().map(t => this.deleteTask(t.id)));
     }

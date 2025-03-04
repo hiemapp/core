@@ -7,7 +7,7 @@ export default class Task extends ModelWithProps {
         date: z.date().nullable(),
         interval: z.string().nullable(),
         keyword: z.string(),
-        data: z.any().optional(),
+        data: z.record(z.string(), z.any()),
         meta: z.record(z.string(), z.any())
     })
 

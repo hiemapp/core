@@ -126,7 +126,7 @@ export default class BlocklyTranspiler {
         })
     }
 
-      protected transpileBlockInputValue(input: BlocklyBlockInput, parent: BlocklyBlock) {
+    protected transpileBlockInputValue(input: BlocklyBlockInput, parent: BlocklyBlock) {
         if(input.block) {
             this.transpileBlock(input.block, parent);
             return { block: input.block.id };
@@ -141,18 +141,21 @@ export default class BlocklyTranspiler {
     }
 
     protected transpileBlockFields(block: BlocklyBlock, blockDef: FlowBlockDef, layout: FlowBlockLayout) {
-        forOwn(block.fields, (value, id) => {
+        forOwn(block.fields!, (value, id) => {
             const parameter = layout.getParameterOrFail(id);
-            if(parameter) {
-                blockDef.parameters.push({ 
-                    id, 
-                    value: { 
-                        constant: value
-                    }
-                });
-            } else {
+            if(!parameter) {
                 logger.warn(`Parameter '${id}' in block '${block.id}' is specified, but not defined in the manifest.`);
+                return;
             }
+
+            value = FlowBlockLayout.deserializeValue(value);
+
+            blockDef.parameters.push({ 
+                id, 
+                value: { 
+                    constant: value
+                }
+            });
         })
     }
 }

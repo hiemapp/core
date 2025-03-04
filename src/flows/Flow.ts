@@ -38,6 +38,7 @@ export default class Flow extends ModelWithProps<FlowType> {
         // Delete all existing tasks
         this.logger.debug('Deleting tasks...');
         await this.taskManager.deleteAllTasks();
+        this.logger.debug('Deleted tasks');
 
         this.setProp('state', newState);
         await this.load();
@@ -52,6 +53,7 @@ export default class Flow extends ModelWithProps<FlowType> {
         this.createContext();
 
         // Load all the blocks
+        this.logger.debug('Loading blocks...');
         await Promise.all(this.getBlocks().map(block => block.load()))
         this.logger.debug('Loaded succesfully.');
         return;
@@ -88,9 +90,7 @@ export default class Flow extends ModelWithProps<FlowType> {
     }
 
     execute() {
-        const { blocks } = this.context;
-
-        Object.values(blocks).forEach(block => {
+        this.getBlocks().forEach(block => {
             if (!block.hasParent()) {
                 block.execute();
             }

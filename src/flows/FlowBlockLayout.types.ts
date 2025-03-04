@@ -67,5 +67,9 @@ export interface IFlowBlockLayoutSerialized_parameter extends Omit<IFlowBlockLay
     provider?: IFlowBlockLayout_parameter['provider'] & {
         handler?: true
     };
-    options?: Exclude<IFlowBlockLayout_parameter_option, ModelWithProps<any>>[]
+    options?: {
+        id?: string;
+        label?: string;
+        value: string;
+    }[]
 }[]

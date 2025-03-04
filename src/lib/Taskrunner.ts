@@ -1,4 +1,3 @@
-import Database from './Database';
 import Logger from './Logger';
 import _ from 'lodash';
 import cronParser from 'cron-parser';
@@ -23,18 +22,18 @@ class Taskrunner {
      */
     protected static CHECK_TASKS_INTERVAL: number = 10 * 1000;
 
-    /**
-     * The difference in time required for a task to be added to
-     * the database.
-     */
-    protected static TASK_MIN_LIFESPAN_FOR_DATABASE: number = 20 * 1000;
-
     /** 
      * The difference in time required for a task to be removed
      * from the database and put into a setTimeout().
      * Note: This should be greater than CHECK_TASKS_INTERVAL.
      */
-    protected static TASK_PREPARE_MS_BEFORE: number = 20 * 1000;
+    protected static TASK_PREPARE_BEFORE_MS: number = 20 * 1000;
+
+    /**
+    * A task is considered expired when its execution date is longer ago
+    * than this threshold, meaning it will not be executed anymore.
+     */
+    protected static TASK_EXPIRE_AFTER_MS: number = 60 * 1000;
 
     static async addTask<TData = any>(manager: TaskManager, keyword: string, date: Date | null = null, interval: string | null = null, data?: TData): Promise<Task|false> {
         try {
@@ -47,21 +46,15 @@ class Taskrunner {
                 }
             }
 
-            // Ignore if dat is in the past
-            if(date && Taskrunner.getTimeUntil(date) <= 0) return false;
-
             const task = await TaskController.create({
                 date,
                 interval,
                 keyword,
-                data,
+                data: data ?? {},
                 meta: {
                     managerId: manager.id
                 }
             })
-
-            // Set default task state
-            this.taskState[task.id] = { isPreparing: false };
 
             this.logger.debug(`Created new '${task.getKeyword()}' task`, { id: task.id, date: task.getDate(), interval: task.getInterval() });
             
@@ -98,88 +91,87 @@ class Taskrunner {
         return this.taskState[id];
     }
 
-    protected static updateTaskState(id: string, taskState: TaskState) {
+    protected static updateTaskState(id: string, taskState: TaskState|null) {
+        if(taskState === null) {
+            delete this.taskState[id];
+            return;
+        }
+        
         this.taskState[id] = Object.assign(this.taskState[id] ?? {}, taskState);
     }
 
     protected static async checkTasks() {
-        const now = Date.now();
-
         TaskController.index().forEach(task => {
             const state = this.getTaskState(task.id);
-            if (state?.isPreparing) return true;
+            if (state?.isPreparing) return;
             
-            const date = task.getDate();
-            const interval = task.getInterval();
-            if (date) {
-                // If the task's date has already passed, delete the the task and ignore it
-                if (Taskrunner.getTimeUntil(date) < 0) {
-                    TaskController.delete(task.id);
-                    return true;
-                }
+            const date = Taskrunner.getExecutionDate(task);
+            if(!date) return;
 
-                // Run the task if it's time is close to the current time
-                if (Taskrunner.getTimeUntil(date) < this.TASK_PREPARE_MS_BEFORE) {
-                    this.prepareTaskForExecution(task.id);
-                }
-            } else if (interval) {
-                try {
-                    const nextDate = cronParser.parseExpression(interval).next();
+            if(this.isExpiredDate(date)) {
+                TaskController.delete(task.id)
+                return;
+            }
 
-                    if (nextDate.getTime() - now <= this.TASK_PREPARE_MS_BEFORE) {
-                        this.prepareTaskForExecution(task.id);
-                    }
-                } catch (err: any) {
-                    this.logger.error(`Error checking task '${task.id}':`, err);
-                }
+            if (this.getTimeUntil(date) < this.TASK_PREPARE_BEFORE_MS) {
+                this.prepareTask(task, date);
             }
         })
     }
 
-    protected static prepareTaskForExecution(task: Task) {
-        const state = this.getTaskState(task.id);
-
-        // Return if the task can not be found
-        // or if it's already being prepared.
-        if (!state?.isPreparing) return;
-
-        this.logger.debug(`Preparing task '${task.id}.'`);
-
-        this.updateTaskState(task.id, {
-            isPreparing: true
-        });
-
-        let msDelay: number|null = null;
+    /**
+     * Get the (next) execution date of a task.
+     * @param task The task of which to get the execution date.
+     * @returns The execution date.
+     */
+    protected static getExecutionDate(task: Task) {
         const date = task.getDate();
+        if(date) return date;
+
         const interval = task.getInterval();
-        if (date) {
-            msDelay = date.getTime() - Date.now();
-        } else if (interval) {
+        if (interval) {
             try {
-                const nextDate = cronParser.parseExpression(interval).next();
-                msDelay = nextDate.getTime() - Date.now();
+                return new Date(cronParser.parseExpression(interval).next().getTime());
             } catch (err: any) {
-                this.logger.error(`Error preparing task '${task.id}':`, err);
+                this.logger.error(`Error preparing task ${task}:`, err);
             }
         }
 
-        if(typeof msDelay === 'number') {
-            setTimeout(async () => {
-                // Check if the task still exists before executing
-                if (!TaskController.exists(task.id)) return;
+        return null;
+    }
 
-                this.executeTask(task);
+    /**
+     * Check if a given date has expired according to `TASK_EXPIRE_AFTER_MS`.
+     * @param date The date to check.
+     * @returns Whether the date has expired.
+     */
+    protected static isExpiredDate(date: Date) {
+        return this.getTimeUntil(date) <= this.TASK_EXPIRE_AFTER_MS*-1;
+    }
 
-                // Delete non-repeating task after execution
-                if(!task.getInterval()) {
-                    TaskController.delete(task.id);
-                }
-            }, msDelay);
-        }
+    protected static prepareTask(task: Task, date: Date) {
+        const state = this.getTaskState(task.id);
+        if (state?.isPreparing) return;
+
+        this.updateTaskState(task.id, { isPreparing: true });
+
+        this.logger.debug(`Preparing task ${task}...`);
+        
+        setTimeout(async () => {
+            // Check if the task still exists before executing
+            if (!TaskController.exists(task.id)) return;
+
+            this.executeTask(task);
+
+            // Delete non-repeating task after execution
+            if(!task.getInterval()) {
+                TaskController.delete(task.id);
+            }
+        }, Taskrunner.getTimeUntil(date));
     }
 
     protected static executeTask(task: Task) {
-        this.logger.debug(`Executing task '${task.id}'.`);
+        this.logger.debug(`Executing task ${task}...`);
 
         try {
             const manager = this.managers[task.getMeta().managerId];
@@ -194,11 +186,9 @@ class Taskrunner {
                 }
             })
 
-            this.updateTaskState(task.id, {
-                isPreparing: false
-            });
+            this.updateTaskState(task.id, null);
         } catch (err: any) {
-            this.logger.error(`Error executing task '${task.id}':`, err);
+            this.logger.error(`Error executing task ${task}:`, err);
         }
     }
 }

@@ -7,7 +7,9 @@ import { glob } from 'glob';
 import jsonfile from 'jsonfile';
 
 export default class Config {
-    private static cache: { [key: string]: any } = {};
+    protected static defaultConfig: Record<string, any> = {};
+    protected static userConfig: Record<string, any> = {};
+    protected static mergedConfig: Record<string, any> = {};
     private static rootDir: string;
 
     static getRootDir() {
@@ -17,25 +19,29 @@ export default class Config {
     static async load(rootDir: string) {
         this.rootDir = rootDir;
 
-        // Get all the default and user file paths
-        const defaultFilepaths = await glob('default/*.json', { absolute: true, cwd: dirs().CONFIG });
-        const userFilepaths = await glob('user/*.json', { absolute: true, cwd: dirs().CONFIG });
+        this.defaultConfig = await this.readConfig('default');
+        this.userConfig = await this.readConfig('user');
+        
+        this.updateMergedConfig();
+    }
 
-        // Read all default config files
-        await Promise.all(defaultFilepaths.map(async (filepath) => {
+    /**
+     * Merge `this.userConfig` and `this.defaultConfig` to `this.mergedConfig`.
+     */
+    protected static updateMergedConfig() {
+        _.defaultsDeep(this.mergedConfig, this.defaultConfig, this.userConfig);
+    }
+
+    protected static async readConfig(dir: string) {
+        const filepaths = await glob('*.json', { absolute: true, cwd: path.join(dirs().CONFIG, dir) });
+        const config: Record<string, any> = {};
+
+        await Promise.all(filepaths.map(async filepath => {
             const filename = path.parse(filepath).name;
-            this.cache[filename] = await jsonfile.readFile(filepath);
+            config[filename] = await jsonfile.readFile(filepath);
         }));
 
-        // Read all user config files and replace
-        await Promise.all(userFilepaths.map(async (filepath) => {
-            const filename = path.parse(filepath).name;
-
-            const contents = await jsonfile.readFile(filepath);
-            this.cache[filename] = _.merge(this.cache[filename] ?? {}, contents);
-        }));
-
-        console.log(this.get('home'));
+        return config;
     }
 
     static get(keypath: string): any {
@@ -49,39 +55,42 @@ export default class Config {
     }
 
     static getOrFail(keypath: string) {
-        return keypath.length ? _.get(this.cache, keypath) : this.cache;
+        return keypath.length ? _.get(this.mergedConfig, keypath) : this.mergedConfig;
     }
 
-    static getOrCreate(keypath: string, newValue: any): any {
+    static getOrCreate(keypath: string, callback: () => unknown): any {
         const currentValue = this.getOrFail(keypath);
-        if (typeof currentValue !== 'undefined') {
-            return currentValue;
-        }
+        if (typeof currentValue !== 'undefined') return currentValue;
 
+        const newValue = callback();
         this.update(keypath, newValue);
 
         if (this.getOrFail(keypath) === newValue) {
-            logger.debug(`Created new config entry '${keypath}'.`);
+            logger.debug(`Set config item '${keypath}' to ${JSON.stringify(newValue)}`);
         } else {
-            throw new Error(`Failed to create new config entry '${keypath}'.`);
+            throw new Error(`Failed to set config item '${keypath}'`);
         }
 
         return newValue;
     }
 
-    static update(keypath: string, value: any) {
+    /**
+     * Modify the user config.
+     * @param keypath The keypath of the item to modify.
+     * @param value The new value.
+     */
+    static update(keypath: string, value: any): void {
         const [filename] = this.splitKeypath(keypath);
-        if (typeof this.cache[filename] === 'undefined') {
-            return;
-        }
+        if (!this.mergedConfig[filename]) return;
 
-        // Update the cache
-        _.set(this.cache, keypath, value);
+        // Update the config in memory
+        _.set(this.userConfig, keypath, value);
+        this.updateMergedConfig();
 
-        const filepath = path.join(dirs().CONFIG, filename + '.json');
+        const filepath = path.join(dirs().CONFIG, 'user', filename + '.json');
 
         // Write the updated data to the file
-        return fs.writeFile(filepath, JSON.stringify(this.cache[filename]));
+        jsonfile.writeFile(filepath, this.userConfig[filename]);
     }
 
     private static splitKeypath(keypath: string): [string, string] {

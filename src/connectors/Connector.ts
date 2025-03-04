@@ -13,8 +13,8 @@ export type ProtocolConfig = {
 export interface ConnectorType {
     id: number;
     events: {
-        'ready': void,
-        'stop': void,
+        'connect': void,
+        'disconnect': void,
         'data': {
             getString: () => string,
             getRaw: () => unknown,
@@ -28,14 +28,14 @@ export default class Connector extends ModelWithProps<ConnectorType> {
         id: z.number(),
         protocol: z.object({
             type: z.string().nullable(),
-            options: z.object({})
+            options: z.record(z.string(), z.any())
         })
     })
 
     public protocol: ConnectorProtocol;
 
     protected _protocolConfig: InferSchema<Connector>['protocol']|null = null;
-    protected _isReady: boolean = false;
+    protected _isConnected: boolean = false;
     /**
      * Check if the connector has been initialized yet.
      * @returns Whether the connector has been initialized yet.
@@ -59,14 +59,14 @@ export default class Connector extends ModelWithProps<ConnectorType> {
         return true;
     }
 
-    isReady() { return this._isReady; }
-    setReady(isReady: boolean) {
-        isReady = !!isReady;
-        if(this._isReady === isReady) return;
+    isConnected() { return this._isConnected; }
+    setConnected(isConnected: boolean) {
+        isConnected = !!isConnected;
+        if(this._isConnected === isConnected) return;
 
-        this._isReady = isReady;
+        this._isConnected = isConnected;
 
-        this.emit(this.isReady() ? 'ready' : 'stop', undefined);
+        this.emit(this.isConnected() ? 'connect' : 'disconnect', undefined);
     }
 
     getProtocolType() {

@@ -26,7 +26,6 @@ abstract class ModelWithProps<TModel extends ModelWithProps2<any>> {
      */
     on(event: string, callback: (data: any) => unknown) {
         this.$script.eventListeners.add(event, callback, this._model, () => {
-            console.log('OFF!', event, callback)
             this.off(event, callback, false);
         });
 

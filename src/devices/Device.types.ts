@@ -1,4 +1,5 @@
 import type { ModelEventReason } from '~/lib/ModelEvent';
+import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
 
 export type DeviceType = {
     id: number,
@@ -23,11 +24,11 @@ export type DeviceType = {
         },
         'execute:start': {
             command: string;
-            params: Record<string, any>;
+            params: DeviceCommandParams<Record<string, any>>;
         }
         'execute:done': {
             command: string;
-            params: Record<string, any>;
+            params: DeviceCommandParams<Record<string, any>>;
             success: boolean;
         },
         'ping': {}
