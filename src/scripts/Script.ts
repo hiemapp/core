@@ -9,14 +9,14 @@ import ScriptEventListenerManager from './ScriptEventListenerManager';
 import { Notification } from '~/notifications';
 import { User, UserController } from '~/users';
 import { z } from 'zod';
+import { ObjectId } from 'mongodb';
 
 export default class Script extends ModelWithProps<ScriptType> {
     protected $schema = z.object({
-        id: z.number(),
         name: z.string().nullable(),
         icon: z.string().nullable(),
         code: z.string().default(''),
-        userId: z.number()
+        userId: z.instanceof(ObjectId)
     })
 
     taskManager: TaskManager;

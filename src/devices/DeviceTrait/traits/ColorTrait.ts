@@ -73,7 +73,10 @@ export class ColorTrait extends DeviceTrait<IColorTrait> {
                     program: null
                 })
 
-                this.setStatus(device, true);
+                const switchTrait = device.getTraitOrFail(SwitchTrait);
+                if(!switchTrait) return;
+
+                switchTrait.setState(device, { status: true });
             },
 
             setProgram: (device, params) => {
@@ -81,20 +84,12 @@ export class ColorTrait extends DeviceTrait<IColorTrait> {
                     color: null,
                     program: params.get('program')
                 })
-                
-                this.setStatus(device, true);
+
+                const switchTrait = device.getTraitOrFail(SwitchTrait);
+                if(!switchTrait) return;
+
+                switchTrait.setState(device, { status: true });
             }
         })
-    }
-
-    setStatus(device: Device, status: boolean) {
-        const switchTrait = device.getTraitOrFail(SwitchTrait);
-        if(!switchTrait) return;
-            
-        switchTrait.setState(device, { status });
-    }
-
-    getAngle(device: Device, input: string) {
-        return device.getMetadata(`traits.color.inputs.${input}.angle`);
     }
 }

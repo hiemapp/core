@@ -8,10 +8,11 @@ import Model from '~/lib/Model';
 import type { UserPermissionAction, UserType } from './User.types';
 import { minimatch } from 'minimatch';
 import z from 'zod';
+import { ObjectId } from 'mongodb';
 
 export default class User extends ModelWithProps<UserType> {
     protected $schema = z.object({
-        id: z.number(),
+        id: z.instanceof(ObjectId),
         username: z.string().nullable(),
         firstName: z.string().nullable(),
         lastName: z.string().nullable(),
@@ -60,7 +61,7 @@ export default class User extends ModelWithProps<UserType> {
     }
 
     getPicturePath() {
-        const filepath = path.resolve(dirs().STATIC, 'users', 'pictures', this.$id + '.jpg');
+        const filepath = path.resolve(dirs().STATIC, 'users', 'pictures', this._id + '.jpg');
         if (!fs.existsSync(filepath)) return null;
 
         return filepath;

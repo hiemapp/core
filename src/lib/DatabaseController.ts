@@ -5,6 +5,7 @@ import Controller from './Controller';
 import { z } from 'zod';
 import { getSchemaDefaults, getTypeFromSchema } from '~/utils/zod';
 import { logger } from './Logger';
+import { ObjectId } from 'mongodb';
 
 type DatabaseRow = {
     id: number
@@ -16,24 +17,24 @@ export default function DatabaseController<T extends ModelWithProps>() {
         static model: any;
 
         static async delete(id: any) {
+            await Database.client.db().collection(this.table).deleteOne({ _id: id });
             delete this.data[id];
-            await Database.knex(this.table).where({ id }).delete()
-                .catch(err => logger.error(err));
+        }
+
+        static find(id: string|number|ObjectId) {
+            return super.find(id instanceof ObjectId ? id.toString() : id);
         }
 
         static async update(resource: T): Promise<void> {
-            const fields = this._propsToFields(resource.getProps());
-            await Database.knex(this.table).where({ id: resource.id }).update(fields).catch(err => {
-                resource.logger.error(err);
-            });
+            await Database.collection(this.table).updateOne(
+                { _id: resource.id }, 
+                { $set: _.omit(resource.getProps(), 'id') });
         }
 
         static async create(props: InferProps<T>) {
-            const insertFields = this._propsToFields(props);
-            const [id] = await Database.knex(this.table).insert(insertFields);
-            
-            const [fields] = await Database.knex(this.table).where({ id }).select();
-            const resource = await this._construct(fields);
+            const { insertedId } = await Database.collection(this.table).insertOne(props);
+            const resource = await this._construct({ ...props, _id: insertedId });
+
             this.add(resource);
             return resource;
         }
@@ -41,53 +42,21 @@ export default function DatabaseController<T extends ModelWithProps>() {
         static async load(model: any): Promise<void> {
             await super.load(model);
 
-            const rows: DatabaseRow[] = await Database.knex.select().from(this.table);
-            await Promise.all(rows.map(async fields => {
-                const resource = await this._construct(fields);
+            const documents = Database.collection(this.table).find();
+            for await (const document of documents) {
+                const resource = await this._construct(document);
                 this.add(resource);
-            }));
+            }
         }
 
-        static _propsToFields(props: Record<string, any>) {
-            return _.chain(props)
-                .omit('id')
-                .mapKeys((v, k: string) => _.snakeCase(k)) 
-
-                // serialize json objects
-                .mapValues(v => _.isPlainObject(v) ? JSON.stringify(v) : v)
-                .value();
-        }
-
-        static _fieldsToProps(fields: Record<string, any>, resource: any) {
-            return _.chain(fields)
-                .omit('id', 'changed_at', 'updated_at')
-                .mapKeys((v, k) => _.camelCase(k)) 
-
-                // deserialize json objects
-                .mapValues((v, k) => {
-                    const type = getTypeFromSchema(resource.$schema, k);
-
-                    if(type instanceof z.ZodObject || type instanceof z.ZodRecord) {
-                        try {
-                            return JSON.parse(typeof v === 'string' ? v : '{}');
-                        } catch(err) {
-                            return {};
-                        }
-                    }
-                    
-                    return v;
-                })
-                .value();
-        }
-
-        static async _construct(fields: Record<string, any>) {
-            const resource = new this.model(fields.id);
+        static async _construct(document: Record<string, any>) {
+            const resource = new this.model(document._id.toString());
 
             if (!(resource.$schema instanceof z.ZodObject)) {
                 throw new Error(`No '$schema' property defined on model '${resource.constructor.name}'.`)
             }
             
-            resource.$props = this._fieldsToProps(fields, resource);
+            resource.$props = _.omit(document, '_id');
             resource._defaultProps = getSchemaDefaults(resource.$schema);
 
             await resource.__init();

@@ -1,9 +1,10 @@
+import { ObjectId } from 'mongodb';
 import { z } from 'zod';
 import ModelWithProps, { InferSchema } from '~/lib/ModelWithProps';
 
 export default class Task extends ModelWithProps {
     protected $schema = z.object({
-        id: z.number(),
+        id: z.instanceof(ObjectId),
         date: z.date().nullable(),
         interval: z.string().nullable(),
         keyword: z.string(),

@@ -1,5 +1,5 @@
 export { OpenCloseTrait } from './OpenCloseTrait';
-export { DimmerTrait as BrightnessTrait } from './DimmerTrait';
+export { DimmerTrait } from './DimmerTrait';
 export { SwitchTrait } from './SwitchTrait';
 export { RotationTrait } from './RotationTrait';
 export { ColorTrait } from './ColorTrait';
@@ -8,3 +8,4 @@ export { TemperatureTrait } from './TemperatureTrait';
 export { SolarPanelTrait } from './SolarPanelTrait';
 export { PowerMeterTrait } from './PowerMeterTrait';
 export { GasMeterTrait } from './GasMeterTrait';
+export { PresenceTrait } from './PresenceTrait';

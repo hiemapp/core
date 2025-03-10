@@ -19,12 +19,12 @@ import DeviceCommandParams from './DeviceTrait/DeviceCommandParams';
 import { User } from '~/users';
 import ConnectorController from '~/connectors/ConnectorController';
 import { z } from 'zod';
+import { ObjectId } from 'mongodb';
 
 export const DeviceStateSchema = z.record(z.string(), z.any());
 
 export default class Device extends ModelWithProps<DeviceType> {
     protected $schema = z.object({
-        id: z.number(),
         name: z.string().default(''),
         color: z.string().default('blue'),
         icon: z.string().default('car'),
@@ -32,7 +32,7 @@ export default class Device extends ModelWithProps<DeviceType> {
             type: z.string().nullable(),
             options: z.object({})
         }),
-        connectorId: z.number().nullable(),
+        connectorId: z.instanceof(ObjectId).nullable(),
         options: z.object({
             recording: z.object({
                 enabled: z.boolean().default(false)
@@ -342,7 +342,7 @@ export default class Device extends ModelWithProps<DeviceType> {
      */
     protected initConnector() {
         const connectorId = this.getProp('connectorId');
-        if (!connectorId) {
+        if (!(connectorId instanceof ObjectId)) {
             this.logger.notice('No connector specified.');
             return false;
         }

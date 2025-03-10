@@ -4,6 +4,7 @@ import ConnectorController from './ConnectorController';
 import { ExtensionController } from '~/extensions';
 import _ from 'lodash';
 import { z } from 'zod';
+import { ObjectId } from 'mongodb';
 
 export type ProtocolConfig = {
     type: string|null;
@@ -25,7 +26,6 @@ export interface ConnectorType {
 
 export default class Connector extends ModelWithProps<ConnectorType> {
     protected $schema = z.object({
-        id: z.number(),
         protocol: z.object({
             type: z.string().nullable(),
             options: z.record(z.string(), z.any())

@@ -5,6 +5,8 @@ import sanitize from 'sanitize-filename';
 import { resolveExtensionFromStack } from './utils';
 import Extension from './Extension';
 import _ from 'lodash';
+import { Database } from '~/lib';
+import { ObjectId } from 'mongodb';
 
 export type TData = Record<string|number, any>;
 
@@ -13,46 +15,37 @@ export interface CacheOptions {
 }
 
 export default class ExtensionStorage<T extends TData = TData> {
-    protected __cache: T = {} as any;
-    protected __extension: Extension;
-    protected dir: string;
-    protected datafile: string;
+    protected data: T = {} as any;
+    protected extension: Extension;
+    protected name: string;
     protected id: string;
 
-    static async load(id: string) {
-        const storage = new ExtensionStorage(id);
-        await storage.refresh();
+    static async load(name: string) {
+        const storage = new ExtensionStorage(name);
+        await storage.write();
         return storage;
     }
 
-    constructor(id: string) {
+    constructor(name: string) {
         const extension = resolveExtensionFromStack();
 
-        this.id = id;
-        this.__extension = extension;
+        this.name = name;
+        this.extension = extension;
 
-        // Create directory
-        this.dir = path.join(dirs().STORAGE, 'extensiondata', sanitize(this.__extension.id), sanitize(id));
-        fs.mkdir(this.dir, { recursive: true }).catch(() => {
-            this.__extension.logger.error(`Failed to create storage directory '${this.dir}'.`);
-        });
-        
-        this.datafile = path.join(this.dir, 'data.json');
+        this.id = `${this.extension.id}.${this.name}`;
     }
 
-    async update<TKey extends keyof T>(key: TKey, value: T[TKey]) {
-        const merged = _.defaultsDeep(value, _.get(this.__cache, key));
-        _.set(this.__cache, key, merged);
-        await this.flush();
+    async update<TKey extends keyof T>(key: TKey, value: T[TKey]): Promise<void>;
+    async update(key: string, value: any): Promise<void> {
+        const merged = _.defaultsDeep(value, _.get(this.data, key));
+        _.set(this.data, key, merged);
+        await this.write();
     }
 
-    async set<TKey extends keyof T>(key: TKey, value: T[TKey]) {
-        _.set(this.__cache, key, value);
-        await this.flush();
-    }
-
-    async flush() {
-        await fs.writeFile(this.datafile, JSON.stringify(this.__cache));
+    async set<TKey extends keyof T>(key: TKey, value: T[TKey]): Promise<void>;
+    async set(key: string, value: any): Promise<void> {
+        _.set(this.data, key, value);
+        await this.write();
     }
 
     get(): T;
@@ -60,28 +53,22 @@ export default class ExtensionStorage<T extends TData = TData> {
     get(key: string|number): any;
     get(...args: any[]): any {
         if(typeof args[0] === 'string') {
-            return _.get(this.__cache, args[0]);
+            return _.get(this.data, args[0]);
         }
         
-        return {...this.__cache};
+        return {...this.data};
+    }
+    
+    protected async write() {
+        return await Database.collection('extension_storage')
+            .updateOne({ id: this.id }, { $set: { data: this.data } }, { upsert: true });
     }
 
-    async createFile(filename: string) {
-        const filepath = path.join(this.dir, sanitize(filename));
+    protected async read() {
+        const item = await Database.collection('extension_storage').findOne({ id: this.id });
+        if(!item) return false;
 
-        // Create a new empty file
-        let fh = await fs.open(filepath, 'a');
-        await fh.close();
-
-        return filepath;
-    }
-
-    async refresh() {
-        try {
-            const content = await fs.readFile(this.datafile, 'utf8').catch(() => '{}');
-            this.__cache = JSON.parse(content);
-        } catch(err) {
-            this.__cache = {} as any;
-        }
+        this.data = item.data;
+        return true;
     }
 }

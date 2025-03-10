@@ -1,6 +1,7 @@
 import * as _ from 'lodash';
 import * as mysql from 'mysql2';
 import knex, { Knex } from 'knex';
+import { MongoClient } from 'mongodb';
 import { logger } from './Logger';
 
 export interface DatabaseCredentials {
@@ -18,45 +19,23 @@ export interface IDatabaseFields {
 class Database {
     static knex: Knex;
     static connection: mysql.Connection;
+    static client: MongoClient;
 
-    protected static getCredentials(): DatabaseCredentials {
-        const fields: Record<keyof DatabaseCredentials, string> = {
-            'host': 'DATABASE_HOST',
-            'user': 'DATABASE_USER',
-            'password': 'DATABASE_PASSWORD',
-            'database': 'DATABASE_DATABASE',
-            'port': 'DATABASE_PORT'
-        }
-
-        return _.mapValues(fields, (envKey, key) => {
-            const value = process.env[envKey];
-
-            if(typeof value !== 'string') {
-                if(key === 'port') return;
-                throw new Error(`Invalid value for environment variable ${envKey}: ${value}.`);
-            }
-
-            return key === 'port' ? parseInt(value) : value;
-        }) as DatabaseCredentials;
+    static collection(table: string) {
+        return Database.client.db().collection(table);
     }
 
-    static connect() {
-        const { host, user, password, database } = this.getCredentials();
-
-        logger.debug(`Connecting to database '${process.env.DATABASE_DATABASE}' as user '${process.env.DATABASE_USER}'...`);
-
-
-        this.knex = knex({
-            client: 'mysql2',
-            connection: {
-                host: process.env.DATABASE_HOST,
-                user: process.env.DATABASE_USER,
-                password: process.env.DATABASE_PASSWORD,
-                database: process.env.DATABASE_DATABASE,
-                port: typeof process.env.DATABASE_PORT === 'number' ? parseInt(process.env.DATABASE_PORT) : undefined,
-                timezone: 'Z'
-            }
-        })
+    static async connect() {
+        try {
+            this.client = new MongoClient(process.env.MONGODB_URI!);
+            
+            logger.debug(`Connecting to database...`);
+            await this.client.connect();
+            logger.info(`Succesfully connected to database '${Database.client.db().databaseName}'.`);
+        } catch (error) {
+            logger.error('Failed to connect to database:', error);
+            process.exit();
+        }
     }
 
     static async query(sql: string, params: any[] = []): Promise<any[]> {

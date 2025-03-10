@@ -10,7 +10,7 @@ export interface IFlowBlockLayout_input {
 
 /* PARAMETER */
 export type IFlowBlockLayout_parameter_value = string | number | boolean | null | undefined;
-export type IFlowBlockLayout_parameter_type = 'string' | 'number' | 'boolean' | 'color' | 'date' | 'device' | 'flow' | 'extension' | 'user' | 'unknown' | 'any' | 'null';
+export type IFlowBlockLayout_parameter_type = 'string' | 'number' | 'boolean' | 'color' | 'date' | 'device' | 'flow' | 'extension' | 'user' | 'unknown' | 'any' | 'null' | 'array';
 export type IFlowBlockLayout_parameter_shadow_type = IFlowBlockLayout_parameter_type | 'time' | typeof FlowBlock | string;
 export type IFlowBlockLayout_parameter_option = {
     id?: string;
@@ -63,7 +63,8 @@ export interface IFlowBlockLayoutSerialized extends IFlowBlockLayout {
     output: Required<IFlowBlockLayout['output']>
 }
 
-export interface IFlowBlockLayoutSerialized_parameter extends Omit<IFlowBlockLayout_parameter, 'provider'> {
+export interface IFlowBlockLayoutSerialized_parameter extends Omit<IFlowBlockLayout_parameter, 'provider'|'type'> {
+    type: IFlowBlockLayout_parameter_type[],
     provider?: IFlowBlockLayout_parameter['provider'] & {
         handler?: true
     };

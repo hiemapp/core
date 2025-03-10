@@ -47,12 +47,11 @@ export default class FlowBlockLayout {
     toJSON(): IFlowBlockLayoutSerialized {
         return {
             ...this.json,
-            parameters: this.json.parameters.map(param => {
-                if(!Array.isArray(param.options)) return param;
-
-                return { 
-                    ...param, 
-                    options: param.options.map(opt => {
+            parameters: this.json.parameters.map(param => ({ 
+                ...param, 
+                type: _.castArray(param.type),
+                options: Array.isArray(param.options) 
+                    ? param.options.map(opt => {
                         if(opt instanceof Model) {
                             opt = { value: opt.id, label: opt.getProp('name')};
                         }
@@ -60,8 +59,8 @@ export default class FlowBlockLayout {
                         // Dropdown values are JSON encoded and prefixed, as Blockly only allows for string values
                         return { ...opt, value: FlowBlockLayout.serializeValue(opt.value) };
                     })
-                };
-            })
+                    : undefined
+            }))
         } as IFlowBlockLayoutSerialized;
     }
 
@@ -80,7 +79,7 @@ export default class FlowBlockLayout {
         json.connections.bottom = !!json.connections.bottom;
 
         // Remove parameters that dont have an `id` or `type` property
-        json.parameters = json.parameters.filter(p => typeof p.id === 'string' && typeof p.type === 'string');
+        json.parameters = json.parameters.filter(p => typeof p.id === 'string' && (typeof p.type === 'string' || Array.isArray(p.type)));
 
         // Remove statements that dont have an `id` property
         json.statements = json.statements.filter(p => typeof p.id === 'string');
