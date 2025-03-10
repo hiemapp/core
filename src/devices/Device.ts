@@ -57,8 +57,19 @@ export default class Device extends ModelWithProps<DeviceType> {
     get driver() { return this._driver };
     protected _driver: DeviceDriver;
 
-    get connector() { return this._connector; }
-    protected _connector: Connector;
+    get connector(): Connector { 
+        if(!(this._connector instanceof Connector)) {
+            throw new Error(`${this} has no connector.`);
+        }
+
+        return this._connector; 
+    }
+    
+    /**
+     * `false` if no connector is specified.
+     * `null` if connector cannot be found.
+     */
+    protected _connector: Connector|null|false = null;
 
     get records() { return this._records; }
     protected _records: RecordManager;
@@ -151,9 +162,9 @@ export default class Device extends ModelWithProps<DeviceType> {
     }
 
     isConnected() {
-        if (!this._driver) return false;
+        if (!(this._driver instanceof DeviceDriver)) return false;
 
-        if (this._connector && !this._connector.isConnected()) return false;
+        if (this._connector instanceof Connector && !this.connector.isConnected()) return false;
 
         if (this._driver.$module.methods.hasProvider('checkConnection')) {
             return !!this._driver.$module.methods.callProvider('checkConnection', [this])
@@ -342,8 +353,9 @@ export default class Device extends ModelWithProps<DeviceType> {
      */
     protected initConnector() {
         const connectorId = this.getProp('connectorId');
-        if (!(connectorId instanceof ObjectId)) {
+        if (!connectorId) {
             this.logger.notice('No connector specified.');
+            this._connector = false;
             return false;
         }
 
